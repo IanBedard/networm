@@ -2497,7 +2497,7 @@ local function drawMenu()
   setc(COL.mid)
   ctext('steer the worm: [A]/[D] or [Left]/[Right]   ·   modules attack on their own', W / 2, 494, 's')
   setc(COL.dim)
-  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause  [M] music', W / 2, 512, 's')
+  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause', W / 2, 512, 's')
 end
 
 local function drawEnd(title, c, sub)
@@ -2515,67 +2515,6 @@ local function drawEnd(title, c, sub)
 end
 
 ---------------------------------------------------------------------------
--- background music (desktop): "Memory" by Sunnexo (Netpunk), CC BY-NC-SA 3.0.
--- The intro plays once, then the track loops between two points 151 bars apart that were picked by
--- analysing it (matching sound and loudness on both sides). A short equal-power crossfade is baked into
--- the seam and the audio is streamed through a queueable source so the jump back has no gap.
--- The web build leaves the file out of the game package; the page plays it with the same loop points.
----------------------------------------------------------------------------
-local MUSIC_FILE = 'music/memory.mp3'
-local MUSIC_LOOP = {start = 5.0773, stop = 211.2837, fade = 0.2}
-local MUSIC_VOLUME = 0.15   -- kept low so it sits under the sound effects
-local music = {on = true}
-
--- equal-power crossfade so the samples just before `stop` flow into those just before `start`
-local function bakeLoopSeam(data, S, E, X)
-  for i = 0, X - 1 do
-    local t = (i + 0.5) / X
-    local a, b = math.cos(t * math.pi / 2), math.sin(t * math.pi / 2)
-    for c = 1, data:getChannelCount() do
-      data:setSample(E - X + i, c, data:getSample(E - X + i, c) * a + data:getSample(S - X + i, c) * b)
-    end
-  end
-end
-
-local function initMusic()
-  if not love.filesystem.getInfo(MUSIC_FILE) then return end
-  local ok, data = pcall(love.sound.newSoundData, MUSIC_FILE)
-  if not ok then return end
-  local rate, ch = data:getSampleRate(), data:getChannelCount()
-  local S = math.floor(MUSIC_LOOP.start * rate)
-  local E = math.min(data:getSampleCount(), math.floor(MUSIC_LOOP.stop * rate))
-  bakeLoopSeam(data, S, E, math.floor(MUSIC_LOOP.fade * rate))
-  music.data, music.ch, music.S, music.E, music.pos = data, ch, S, E, 0
-  music.chunk = love.sound.newSoundData(4096, rate, data:getBitDepth(), ch)
-  music.src = love.audio.newQueueableSource(rate, data:getBitDepth(), ch, 4)
-  music.src:setVolume(MUSIC_VOLUME)
-end
-
--- next stretch of the track for the queue, wrapping from the loop end back to the loop start
-local function nextMusicChunk()
-  local d, c = music.data, music.chunk
-  local n = math.min(c:getSampleCount(), music.E - music.pos)
-  if n < c:getSampleCount() then c = love.sound.newSoundData(n, d:getSampleRate(), d:getBitDepth(), music.ch) end
-  for i = 0, n - 1 do
-    for ch = 1, music.ch do c:setSample(i, ch, d:getSample(music.pos + i, ch)) end
-  end
-  music.pos = music.pos + n
-  if music.pos >= music.E then music.pos = music.S end
-  return c
-end
-
-local function updateMusic()
-  if not music.src then return end
-  while music.src:getFreeBufferCount() > 0 do music.src:queue(nextMusicChunk()) end
-  if music.on and not music.src:isPlaying() then music.src:play() end
-end
-
-local function toggleMusic()
-  music.on = not music.on
-  if music.src and not music.on then music.src:pause() end
-end
-
----------------------------------------------------------------------------
 -- LOVE callbacks
 ---------------------------------------------------------------------------
 function love.load()
@@ -2584,7 +2523,6 @@ function love.load()
   resize(lg.getDimensions())
   local ok = pcall(initSounds)
   if not ok then sfx = {} end
-  initMusic()
 end
 
 function love.resize(w, h) resize(w, h) end
@@ -2597,7 +2535,6 @@ end
 function love.update(dt)
   dt = math.min(dt, 1 / 30)
   time = time + dt
-  updateMusic()
   if state == 'arena' and not paused then updateArena(dt) end
   if state == 'shop' and run.msg then run.msg.t = run.msg.t - dt end
 end
@@ -2648,7 +2585,6 @@ local function tryStart()
 end
 
 function love.keypressed(key)
-  if key == 'm' then toggleMusic(); return end
   if state == 'menu' then
     if key == 'space' or key == 'return' then newRun()
     elseif key == 'escape' then love.event.quit() end

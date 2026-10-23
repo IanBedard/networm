@@ -21,8 +21,6 @@ node "$tmp\node_modules\love.js\index.js" -c -t NetWorm -m 67108864 "$tmp\networ
 
 New-Item -ItemType Directory -Force "$root\web" | Out-Null
 foreach ($f in 'love.js', 'love.wasm') { Copy-Item "$tmp\out\$f" "$root\web\$f" -Force }
-# the page streams the music itself (Web Audio loop points), so it stays out of the base64 game package
-Copy-Item "$root\music\memory.mp3" "$root\web\music.mp3" -Force
 
 # Ship the game package as a script (game-data.js) instead of a raw .data file, so it can be
 # hosted anywhere that serves .js; game.js is patched to take the bytes from Module.gameData.
@@ -39,6 +37,6 @@ if (Test-Path "$root\web\game.data") { Remove-Item "$root\web\game.data" }
 $sha = [System.Security.Cryptography.SHA256]::Create()
 $hash = (-join ($sha.ComputeHash([IO.File]::ReadAllBytes("$root\web\game-data.js"))[0..3] | ForEach-Object { $_.ToString('x2') }))
 $html = [IO.File]::ReadAllText("$root\web\index.html")
-$html = [regex]::Replace($html, '(src|data-music)="(game-data\.js|game\.js|love\.js|music\.mp3)(\?v=[0-9a-f]+)?"', { param($m) $m.Groups[1].Value + '="' + $m.Groups[2].Value + '?v=' + $hash + '"' })
+$html = [regex]::Replace($html, 'src="(game-data\.js|game\.js|love\.js)(\?v=[0-9a-f]+)?"', { param($m) 'src="' + $m.Groups[1].Value + '?v=' + $hash + '"' })
 [IO.File]::WriteAllText("$root\web\index.html", $html, $utf8)
 Write-Host "Web build updated in $root\web"

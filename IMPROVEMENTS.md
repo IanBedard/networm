@@ -164,3 +164,9 @@ against a typical 0.041 (p99 0.28) for this track, i.e. indistinguishable from n
 numbers on the web build's decoded buffer. Desktop load 0.64 s, streaming under 1 ms CPU per second of
 music. Web: after the first click the source plays with loop 5.0773-211.2837 s at 35% volume (later lowered to 15% on request). I could
 not listen to the result, so the "seamless" verdict rests on these measurements.
+
+## Background music removed (requested)
+
+The looping soundtrack, its M toggle, credit and files were removed again on request. The synthesized
+sound effects and the web audio-resume fix are unchanged. Tests (18/18), the 25-level harness and a
+desktop launch pass.
