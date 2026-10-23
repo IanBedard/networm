@@ -6,113 +6,127 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700&family=Manrope:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap">
 <style>
-  /* Layout: one centred column - name row, the game in a white card, controls as chips underneath.
-     Single light theme on purpose: it matches the game's own palette. */
+  /* Layout: a terminal session - prompt line, the game as a framed tty, man-page style notes.
+     Single dark theme on purpose: it matches the game's phosphor-terminal look. */
   :root {
-    --page: #f2f2f4;
-    --card: #ffffff;
-    --ink: #1e1e1e;
-    --muted: #6b6b73;
-    --faint: #9a9aa3;
-    --rule: #e4e4e9;
-    --pink: #ff2d95;
-    --mint-ink: #139a5c;
-    --mint: #d7f5e6;
-    --display: 'Sora', 'Segoe UI', system-ui, sans-serif;
-    --body: 'Manrope', 'Segoe UI', system-ui, sans-serif;
-    color-scheme: light;
+    --screen: #060908;
+    --panel: #0b120e;
+    --rule: #224432;
+    --ink: #c9f7d4;
+    --phosphor: #5af78e;
+    --muted: #7fb894;
+    --faint: #4d7d5f;
+    --panic: #ff3b5c;
+    --amber: #ffc777;
+    --mono: 'Roboto Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    color-scheme: dark;
   }
   [hidden] { display: none !important; }
-  html, body { background: var(--page); color: var(--ink); }
+  html, body { background: var(--screen); color: var(--ink); }
   body {
-    font-family: var(--body);
+    font-family: var(--mono);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
-    padding-block: 28px 40px;
+    padding-block: 24px 40px;
   }
-  .wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 18px; }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; }
-  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.02em; margin: 0; line-height: 1; }
-  .tag { font-size: 12px; font-weight: 600; color: var(--mint-ink); background: var(--mint); padding: 3px 10px; border-radius: 99px; }
-  header p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 15px; }
+  body::after {
+    /* CRT scanlines over the whole page */
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  }
+  .wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 16px; }
+  .prompt { color: var(--faint); font-size: 13px; overflow-wrap: anywhere; }
+  .prompt b { color: var(--phosphor); font-weight: 500; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+  h1 {
+    font-weight: 700; font-size: clamp(28px, 6vw, 44px); letter-spacing: 0.04em; margin: 0; line-height: 1;
+    color: var(--phosphor); text-shadow: 0 0 12px rgba(90, 247, 142, .35);
+  }
+  h1::after { content: "_"; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .tag { font-size: 12px; color: var(--screen); background: var(--phosphor); padding: 2px 8px; }
+  header p { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 14px; }
 
   .stage {
-    position: relative; background: var(--card); border-radius: 14px; overflow: hidden;
-    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+    position: relative; background: var(--screen); overflow: hidden;
+    border: 1px solid var(--rule); box-shadow: 0 0 0 1px #000, 0 0 40px rgba(90, 247, 142, .08);
     aspect-ratio: 16 / 9; max-width: 100%;
   }
   #canvas { display: block; width: 100%; height: 100%; visibility: hidden; outline: none; }
   .overlay {
     position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px;
-    text-align: center; padding: 16px; background: var(--card);
+    text-align: center; padding: 16px; background: var(--screen);
   }
-  .overlay strong { font-family: var(--display); font-weight: 500; font-size: 17px; }
-  .overlay span { color: var(--faint); font-size: 13px; }
-  .bar { width: min(260px, 60vw); height: 8px; border-radius: 4px; background: var(--rule); overflow: hidden; }
-  .bar i { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 4px; transition: width .2s; }
+  .overlay strong { font-weight: 500; font-size: 15px; color: var(--phosphor); }
+  .overlay span { color: var(--faint); font-size: 12px; }
+  .bar { width: min(280px, 60vw); height: 10px; border: 1px solid var(--rule); padding: 1px; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--phosphor); transition: width .2s; }
 
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13px; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 12px; color: var(--muted); }
   kbd {
-    font-family: var(--body); font-weight: 600; font-size: 12px; color: var(--ink);
-    background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 2px 7px;
+    font-family: var(--mono); font-size: 12px; color: var(--phosphor);
+    background: var(--panel); border: 1px solid var(--rule); padding: 1px 6px;
   }
-  .controls .sep { width: 1px; height: 16px; background: var(--rule); }
+  .controls .sep { color: var(--rule); }
   button {
-    margin-left: auto; font: 600 13px var(--body); color: var(--card); background: var(--ink);
-    border: 0; border-radius: 99px; padding: 8px 16px; cursor: pointer;
+    margin-left: auto; font: 500 12px var(--mono); color: var(--screen); background: var(--phosphor);
+    border: 0; padding: 7px 14px; cursor: pointer;
   }
-  button:hover { background: #3a3a40; }
-  button:focus-visible, #canvas:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+  button:hover { background: var(--ink); }
+  button:focus-visible, #canvas:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
 
-  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-  .note { background: var(--card); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
-  .note b { font-family: var(--display); font-weight: 500; font-size: 14px; }
-  .note span { color: var(--muted); font-size: 13px; line-height: 1.5; }
-  .note em { font-style: normal; color: var(--pink); font-weight: 600; }
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .note { background: var(--panel); border: 1px solid var(--rule); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
+  .note b { font-weight: 500; font-size: 13px; color: var(--phosphor); }
+  .note b::before { content: "## "; color: var(--faint); }
+  .note span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .note em { font-style: normal; color: var(--panic); }
+  .note strong { font-weight: 500; color: var(--amber); }
 
   @media (max-width: 640px) { button { margin-left: 0; } }
-  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } h1::after { animation: none; } }
 </style>
 
 <script src="game-data.js"></script>
 
 <div class="wrap">
+  <div class="prompt"><b>root@plotline</b>:~$ ./plotline --tty1</div>
   <header>
-    <h1>Plotline</h1>
-    <span class="tag">snake auto-battler</span>
-    <p>Steer the line. Your heroes fight on their own. Survive 25 levels.</p>
+    <h1>PLOTLINE</h1>
+    <span class="tag">kernel-mode snake auto-battler</span>
+    <p>Steer the snake. Your units kill hostile processes on their own. Survive 25 levels.</p>
   </header>
 
   <div class="stage" id="stage">
     <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
     <div class="overlay" id="overlay">
-      <strong id="status">Loading the game…</strong>
+      <strong id="status">booting plotline…</strong>
       <div class="bar"><i id="progress"></i></div>
-      <span>About 5 MB, first load only takes a moment</span>
+      <span>loading ~5 MB into memory, first boot only</span>
     </div>
   </div>
 
   <div class="controls">
     <span><kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> steer</span>
-    <span class="sep"></span>
+    <span class="sep">|</span>
     <span><kbd>Space</kbd> start</span>
-    <span class="sep"></span>
+    <span class="sep">|</span>
     <span><kbd>R</kbd> reroll</span>
-    <span class="sep"></span>
+    <span class="sep">|</span>
     <span><kbd>U</kbd> upgrade shop</span>
-    <span class="sep"></span>
+    <span class="sep">|</span>
     <span><kbd>C</kbd> catalogue</span>
-    <span class="sep"></span>
+    <span class="sep">|</span>
     <span><kbd>P</kbd> pause</span>
-    <button type="button" id="fullscreen">Full screen</button>
+    <button type="button" id="fullscreen">[F] fullscreen</button>
   </div>
 
   <div class="notes">
-    <div class="note"><b>Fight</b><span>The snake never stops moving. Hitting a wall hurts the head. <em>Pink shapes</em> are enemies: ramming one hurts both of you, and Rammers are built for it.</span></div>
-    <div class="note"><b>Recruit</b><span>Buy units with gold; 3 copies rank a unit up to Lv2, 9 to Lv3. Upgrade the shop for better tiers, and open the Catalogue to see every unit.</span></div>
-    <div class="note"><b>Combine</b><span>Units share classes. Field enough of one class and its bonus switches on for the whole run.</span></div>
+    <div class="note"><b>fight</b><span>The snake never stops. Walls hurt the head. <em>Red shapes</em> are hostile processes: ramming one hurts both of you, and Rammers are built for it. Watch for kamikazes, repulsor pulses and sniper lasers.</span></div>
+    <div class="note"><b>recruit</b><span>Buy units with <strong>gold</strong>; 3 copies rank a unit to Lv2, 9 to Lv3. Upgrade the shop for better tiers, and open the catalog to see every unit.</span></div>
+    <div class="note"><b>combine</b><span>Each unit has classes. Field enough of one class and its bonus switches on. Merchants make money: coin drops, interest, gold per kill.</span></div>
   </div>
 </div>
 
@@ -133,6 +147,9 @@
     if ([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1 && document.activeElement === canvas) e.preventDefault();
   }, false);
   canvas.addEventListener('mousedown', function () { canvas.focus(); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'f' || e.key === 'F') document.getElementById('fullscreen').click();
+  });
 
   document.getElementById('fullscreen').addEventListener('click', function () {
     var el = document.getElementById('stage');

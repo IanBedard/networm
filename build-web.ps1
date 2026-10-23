@@ -12,7 +12,8 @@ $conf = [IO.File]::ReadAllText("$root\conf.lua") -replace 'width = 1280', 'width
 [IO.File]::WriteAllText("$tmp\conf.lua", $conf, $utf8)
 Copy-Item "$root\main.lua" $tmp
 
-Compress-Archive -Path "$tmp\main.lua", "$tmp\conf.lua" -DestinationPath "$tmp\plotline.zip"
+Copy-Item -Recurse "$root\font" "$tmp\font"
+Compress-Archive -Path "$tmp\main.lua", "$tmp\conf.lua", "$tmp\font" -DestinationPath "$tmp\plotline.zip"
 Move-Item "$tmp\plotline.zip" "$tmp\plotline.love"
 
 npm install --silent --prefix $tmp love.js@11.4.1

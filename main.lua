@@ -21,7 +21,8 @@ local REROLL_COST = 1
 
 local scale, ox, oy = 1, 0, 0
 local fonts = {}
-local FONT_SIZES = {s = 11, m = 15, l = 24, xl = 64}
+local FONT_SIZES = {s = 11, m = 14, l = 22, xl = 56}
+local FONT_FILE = 'font/RobotoMono.ttf'
 local state = 'menu'
 local run, arena
 local paused = false
@@ -43,19 +44,21 @@ local function hex(s, a)
 end
 local function setc(c, a) lg.setColor(c[1], c[2], c[3], (c[4] or 1) * (a or 1)) end
 
--- light dashboard palette: white cards, ink bars, one pink accent, mint tags
+-- terminal palette: near-black screen, phosphor-green text, amber money, panic-red enemies
 local COL = {
-  bg = hex('f2f2f4'), card = hex('ffffff'), hover = hex('f4f4f6'), grid = hex('ededf0'),
-  line = hex('dcdce2'), light = hex('c9c9cf'), mid = hex('6b6b73'), dim = hex('9a9aa3'),
-  ink = hex('1e1e1e'), text = hex('1e1e1e'), dark = hex('1e1e1e'), white = {1, 1, 1, 1},
-  pink = hex('ff2d95'), pinkSoft = hex('ffd6ea'), mintText = hex('139a5c'), mintSoft = hex('d7f5e6'),
-  green = hex('1fbf75'), red = hex('e8336f'), gold = hex('ff2d95'), purple = hex('9a7aa8'), coin = hex('d4a017'),
+  bg = hex('060908'), card = hex('0b120e'), hover = hex('122219'), grid = hex('15251b'),
+  line = hex('224432'), light = hex('2f5440'), mid = hex('7fb894'), dim = hex('4d7d5f'),
+  ink = hex('c9f7d4'), text = hex('c9f7d4'), dark = hex('060908'), white = {1, 1, 1, 1},
+  pink = hex('ff3b5c'), pinkSoft = hex('3a1219'), mintText = hex('5af78e'), mintSoft = hex('0f2a18'),
+  green = hex('5af78e'), red = hex('ff3b5c'), gold = hex('ffc777'), purple = hex('bb9af7'), coin = hex('ffc777'),
+  cyan = hex('57c7ff'),
 }
 
 -- Fonts are rasterised at window scale and drawn at 1/scale so text stays crisp.
 local function makeFonts()
   for k, sz in pairs(FONT_SIZES) do
-    fonts[k] = lg.newFont(math.max(1, math.floor(sz * scale + 0.5)))
+    local px = math.max(1, math.floor(sz * scale + 0.5))
+    fonts[k] = love.filesystem.getInfo(FONT_FILE) and lg.newFont(FONT_FILE, px) or lg.newFont(px)
   end
 end
 local function text(str, x, y, f, align, limit)
@@ -129,18 +132,18 @@ end
 ---------------------------------------------------------------------------
 -- internal keys stay generic; display names are Embercoil's own
 local CLASSES = {
-  warrior  = {name = 'Guardian',   color = hex('577590'), tiers = {2, 4}, desc = {'Guardians take 25% less damage', 'Guardians take 50% less damage'}},
-  ranger   = {name = 'Marksman',   color = hex('2a9d8f'), tiers = {2, 4}, desc = {'Marksmen attack 25% faster', 'Marksmen attack 50% faster'}},
-  mage     = {name = 'Arcanist',   color = hex('3a86ff'), tiers = {2, 4}, desc = {'Arcanists deal +30% damage', 'Arcanists deal +60% damage'}},
-  rogue    = {name = 'Cutthroat',  color = hex('c1121f'), tiers = {2, 4}, desc = {'Cutthroats: 15% crit chance (x3)', 'Cutthroats: 30% crit chance (x3)'}},
-  healer   = {name = 'Sage',       color = hex('80b918'), tiers = {1, 2}, desc = {'Healing +50%', 'Healing +100%'}},
-  nuker    = {name = 'Demolisher', color = hex('f77f00'), tiers = {2, 4}, desc = {'Demolisher blasts +30% size', 'Demolisher blasts +60% size'}},
-  conjurer = {name = 'Artificer',  color = hex('8d6e63'), tiers = {1, 2}, desc = {'Gadgets +50% dmg & duration', 'Gadgets +100% dmg & duration'}},
-  voider   = {name = 'Hexer',      color = hex('7b2cbf'), tiers = {2, 4}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
-  enforcer = {name = 'Bruiser',    color = hex('8d99ae'), tiers = {2, 4}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
+  warrior  = {name = 'Guardian',   color = hex('7aa2f7'), tiers = {2, 4}, desc = {'Guardians take 25% less damage', 'Guardians take 50% less damage'}},
+  ranger   = {name = 'Marksman',   color = hex('5af78e'), tiers = {2, 4}, desc = {'Marksmen attack 25% faster', 'Marksmen attack 50% faster'}},
+  mage     = {name = 'Arcanist',   color = hex('bb9af7'), tiers = {2, 4}, desc = {'Arcanists deal +30% damage', 'Arcanists deal +60% damage'}},
+  rogue    = {name = 'Cutthroat',  color = hex('ff9e64'), tiers = {2, 4}, desc = {'Cutthroats: 15% crit chance (x3)', 'Cutthroats: 30% crit chance (x3)'}},
+  healer   = {name = 'Sage',       color = hex('5ef1d0'), tiers = {1, 2}, desc = {'Healing +50%', 'Healing +100%'}},
+  nuker    = {name = 'Demolisher', color = hex('f7f76a'), tiers = {2, 4}, desc = {'Demolisher blasts +30% size', 'Demolisher blasts +60% size'}},
+  conjurer = {name = 'Artificer',  color = hex('57c7ff'), tiers = {1, 2}, desc = {'Gadgets +50% dmg & duration', 'Gadgets +100% dmg & duration'}},
+  voider   = {name = 'Hexer',      color = hex('f38cf0'), tiers = {2, 4}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
+  enforcer = {name = 'Bruiser',    color = hex('a9b1d6'), tiers = {2, 4}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
 }
-CLASSES.rammer = {name = 'Rammer', color = hex('22223b'), tiers = {2, 4}, desc = {'Rams +50% dmg, -70% hit damage', 'Rams +100% dmg, -85% hit damage'}}
-CLASSES.merchant = {name = 'Merchant', color = hex('d4a017'), tiers = {2, 4}, desc = {'Enemies: 6% chance to drop a coin', '15% coin drops, +2 max interest'}}
+CLASSES.rammer = {name = 'Rammer', color = hex('f0f0f0'), tiers = {2, 4}, desc = {'Rams +50% dmg, -70% hit damage', 'Rams +100% dmg, -85% hit damage'}}
+CLASSES.merchant = {name = 'Merchant', color = hex('ffc777'), tiers = {2, 4}, desc = {'Enemies: 6% chance to drop a coin', '15% coin drops, +2 max interest'}}
 local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer', 'rammer', 'merchant'}
 
 ---------------------------------------------------------------------------
@@ -205,7 +208,7 @@ local function damageEnemy(e, dmg, src, opt)
   if src and src.crit > 0 and not (opt and opt.nocrit) and rand() < src.crit then dmg = dmg * 3; crit = true end
   e.hp = e.hp - dmg
   e.flash = 0.1
-  addText(e.x + rr(-6, 6), e.y - e.r - 4, tostring(math.floor(dmg + 0.5)), crit and COL.ink or (opt and opt.color) or COL.mid, crit)
+  addText(e.x + rr(-6, 6), e.y - e.r - 4, tostring(math.floor(dmg + 0.5)), crit and COL.gold or (opt and opt.color) or COL.mid, crit)
   if e.hp <= 0 then killEnemy(e, src) end
 end
 
@@ -233,6 +236,7 @@ local function blast(x, y, r, dmg, src, o)
     x = x, y = y, r = r, dmg = dmg, src = src, delay = o.delay or 0, dur = o.dur or 0, ling = (o.dur or 0) > 0,
     tick = o.tick or 0.5, tt = 0, color = o.color or (src and src.color) or COL.white, stun = o.stun,
     knock = o.knock, age = 0, fired = false, faint = o.faint, nocrit = o.nocrit, maxdelay = o.delay or 0,
+    visual = o.visual,  -- enemy effects: drawn like a blast but never hurt enemies
   }
 end
 
@@ -363,10 +367,10 @@ local UNITS = {
       return true
     end},
   frostbinder = {name = 'Frostbinder', tier = 2, classes = {'mage', 'enforcer'}, hp = 120, dmg = 12, cd = 2.6, range = 280,
-    desc = 'Launches a frost orb that bursts and freezes enemies for 1s.',
+    desc = 'Fires a frost orb that bursts and freezes for 1s.',
     attack = function(u, t) shoot(u, angleTo(u, t), {speed = 280, explode = 40, stun = 1, r = 6}); return true end},
   soulmender = {name = 'Soulmender', tier = 2, classes = {'healer', 'voider'}, hp = 110, dmg = 6, cd = 4, noTarget = true, silent = true,
-    desc = 'Heals the most injured ally 15% and curses the nearest enemy.',
+    desc = 'Heals the weakest ally 15% and curses an enemy.',
     attack = function(u)
       local did, best, br = false, nil, 0.999
       for _, o in ipairs(arena.alive) do
@@ -395,9 +399,9 @@ local UNITS = {
 
   -- rammers: built to hit enemies with their body; collisions hurt them half as much
   tusker = {name = 'Tusker', tier = 1, classes = {'rammer', 'warrior'}, hp = 170, dmg = 0, ram = 30, cd = 1, noAttack = true,
-    desc = 'Rams enemies for heavy damage. Takes half damage from collisions.'},
+    desc = 'Rams hard. Takes half damage from collisions.'},
   spikeback = {name = 'Spikeback', tier = 1, classes = {'rammer', 'enforcer'}, hp = 150, dmg = 10, ram = 20, cd = 2, range = 40, aoe = true, silent = true,
-    desc = 'Rams enemies and bristles spikes that hit everything adjacent.',
+    desc = 'Rams, and its spikes hit everything adjacent.',
     attack = function(u) blast(u.x, u.y, 38 * u.aream, u.dmg, u, {faint = true}); return true end},
   ironhorn = {name = 'Ironhorn', tier = 2, classes = {'rammer', 'enforcer'}, hp = 200, dmg = 0, ram = 45, ramStun = 1, cd = 1, noAttack = true,
     desc = 'Rams so hard that enemies are stunned for 1s.'},
@@ -406,7 +410,7 @@ local UNITS = {
 
   -- merchants: earn money
   peddler = {name = 'Peddler', tier = 1, classes = {'merchant'}, hp = 100, dmg = 7, cd = 1.2, range = 240, levelGold = {1, 2, 3},
-    desc = 'Pelts enemies with trinkets. Earns $1/$2/$3 extra each level.',
+    desc = 'Pelts enemies. Earns $1/$2/$3 extra each level.',
     attack = function(u, t) shoot(u, angleTo(u, t), {speed = 320}); return true end},
   pickpocket = {name = 'Pickpocket', tier = 1, classes = {'merchant', 'rogue'}, hp = 95, dmg = 8, cd = 1, range = 220, coinOnKill = {0.15, 0.22, 0.3},
     desc = 'Throws knives. Enemies it kills often drop a coin.',
@@ -418,18 +422,18 @@ local UNITS = {
     desc = 'Fires piercing shots. Enemies it kills often drop a coin.',
     attack = function(u, t) shoot(u, angleTo(u, t), {speed = 520, pierce = 2, shape = 'arrow'}); return true end},
   taxcollector = {name = 'Tax Collector', tier = 3, classes = {'merchant', 'warrior'}, hp = 220, dmg = 22, cd = 1.8, range = 60, aoe = true, killGold = {12, 9, 6},
-    desc = 'Swings a ledger at nearby enemies. +$1 per 12/9/6 kills each level.',
+    desc = 'Swings at nearby enemies. +$1 per 12/9/6 kills.',
     attack = function(u) blast(u.x, u.y, 60 * u.aream, u.dmg, u); return true end},
 
   -- tier 4
   tycoon = {name = 'Tycoon', tier = 4, classes = {'merchant', 'mage'}, hp = 150, dmg = 20, cd = 1.6, range = 320, levelGold = {2, 3, 4},
-    desc = 'Hurls exploding gold: +2 damage per $ you hold. Earns $2-4 each level.',
+    desc = 'Exploding gold: +2 dmg per $ held. +$2-4 a level.',
     attack = function(u, t)
       shoot(u, angleTo(u, t), {speed = 360, r = 6, explode = 34, color = COL.coin, dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
       return true
     end},
   colossus = {name = 'Colossus', tier = 4, classes = {'rammer', 'enforcer'}, hp = 380, dmg = 0, ram = 120, ramSplash = 70, ramStun = 1, cd = 1, noAttack = true,
-    desc = 'A living battering ram: huge ram damage, shockwave and stun.'},
+    desc = 'Living battering ram: huge rams, shockwave, stun.'},
   archmage = {name = 'Archmage', tier = 4, classes = {'mage', 'nuker'}, hp = 140, dmg = 40, cd = 4, range = 360,
     desc = 'Rains 5 meteors on enemies in range.',
     attack = function(u)
@@ -445,7 +449,7 @@ local UNITS = {
       return true
     end},
   warlord = {name = 'Warlord', tier = 4, classes = {'warrior', 'enforcer'}, hp = 320, dmg = 40, cd = 4, range = 110, aoe = true,
-    desc = 'Slams the ground, stunning and hurling back everything nearby.',
+    desc = 'Slams the ground, stunning and hurling enemies.',
     attack = function(u) blast(u.x, u.y, 120 * u.aream, u.dmg, u, {stun = 1.5, knock = 400}); shake(7); return true end},
   deadeye = {name = 'Deadeye', tier = 4, classes = {'ranger', 'rogue'}, hp = 130, dmg = 90, cd = 3, range = 450, critBonus = 0.3,
     desc = 'Snipes through every enemy in a line. +30% crit chance.',
@@ -491,7 +495,7 @@ do
   for cl, list in pairs(byClass) do
     local base = CLASSES[cl].color
     for i, d in ipairs(list) do
-      local k = #list == 1 and 0 or lerp(-0.3, 0.35, (i - 1) / (#list - 1))
+      local k = #list == 1 and 0 or lerp(-0.28, 0.3, (i - 1) / (#list - 1))
       if k < 0 then
         d.color = {base[1] * (1 + k), base[2] * (1 + k), base[3] * (1 + k), 1}
       else
@@ -505,6 +509,11 @@ end
 -- run / party
 ---------------------------------------------------------------------------
 local function maxUnits(l) return math.min(8, 3 + math.floor((l - 1) / 3)) end
+local function nextSlotLevel(l)
+  for k = l + 1, MAX_LEVEL do
+    if maxUnits(k) > maxUnits(l) then return k end
+  end
+end
 local function isBoss(l) return l % 6 == 0 or l == MAX_LEVEL end
 local function hpScale(l) return 1 + 0.2 * (l - 1) + 0.015 * (l - 1) ^ 2 end
 local function memberLevel(m) return m.copies >= 9 and 3 or (m.copies >= 3 and 2 or 1) end
@@ -570,7 +579,12 @@ local function buyOffer(i)
     m.copies = m.copies + 1
     if memberLevel(m) > before then shopMsg(def.name .. ' reached level ' .. memberLevel(m) .. '!', COL.gold) end
   else
-    if #run.party >= maxUnits(run.level) then play('error'); shopMsg('Party is full - sell a unit first', COL.red); return end
+    if #run.party >= maxUnits(run.level) then
+      local ns = nextSlotLevel(run.level)
+      play('error')
+      shopMsg('Party is full - sell a unit first' .. (ns and (' (next slot at level ' .. ns .. ')') or ''), COL.red)
+      return
+    end
     run.party[#run.party + 1] = {key = key, def = def, copies = 1}
   end
   run.gold = run.gold - cost
@@ -598,13 +612,16 @@ end
 -- enemies
 ---------------------------------------------------------------------------
 local ENEMIES = {
-  seeker   = {hp = 22,  r = 9,  speed = 55, dmg = 10, color = hex('ff2d95')},
-  shooter  = {hp = 18,  r = 9,  speed = 45, dmg = 8,  color = hex('ff5fae')},
-  charger  = {hp = 30,  r = 10, speed = 40, dmg = 14, color = hex('e0177a')},
-  tank     = {hp = 90,  r = 15, speed = 28, dmg = 18, color = hex('c2126a')},
-  splitter = {hp = 35,  r = 11, speed = 48, dmg = 10, color = hex('ff7ab8')},
-  mini     = {hp = 10,  r = 6,  speed = 75, dmg = 6,  color = hex('ff9fcb')},
-  boss     = {hp = 900, r = 26, speed = 35, dmg = 25, color = hex('ff2d95')},
+  seeker   = {hp = 22,  r = 9,  speed = 55, dmg = 10, color = hex('ff3b5c')},
+  shooter  = {hp = 18,  r = 9,  speed = 45, dmg = 8,  color = hex('ff6b4a')},
+  charger  = {hp = 30,  r = 10, speed = 40, dmg = 14, color = hex('ff1f4b')},
+  tank     = {hp = 90,  r = 15, speed = 28, dmg = 18, color = hex('c9184a')},
+  splitter = {hp = 35,  r = 11, speed = 48, dmg = 10, color = hex('ff8fa3')},
+  mini     = {hp = 10,  r = 6,  speed = 75, dmg = 6,  color = hex('ffb3c1')},
+  boss     = {hp = 900, r = 26, speed = 35, dmg = 25, color = hex('ff3b5c')},
+  kamikaze = {hp = 14,  r = 7,  speed = 95, dmg = 10, color = hex('ff006e')},   -- rushes in, arms, explodes
+  repulsor = {hp = 45,  r = 12, speed = 35, dmg = 8,  color = hex('e5383b')},   -- pulses a shockwave that shoves the snake
+  sniper   = {hp = 20,  r = 9,  speed = 40, dmg = 16, color = hex('ff9e80')},   -- aims a long laser-sighted shot
 }
 
 function spawnEnemy(tp, x, y)
@@ -629,6 +646,10 @@ local function pickEnemyType(l)
   if l >= 8 then pool[#pool + 1] = 'tank' end
   if l >= 10 then pool[#pool + 1] = 'splitter' end
   if l >= 14 then pool[#pool + 1] = 'shooter'; pool[#pool + 1] = 'charger'; pool[#pool + 1] = 'tank' end
+  if l >= 4 then pool[#pool + 1] = 'kamikaze' end
+  if l >= 7 then pool[#pool + 1] = 'repulsor' end
+  if l >= 11 then pool[#pool + 1] = 'sniper' end
+  if l >= 16 then pool[#pool + 1] = 'kamikaze'; pool[#pool + 1] = 'repulsor'; pool[#pool + 1] = 'sniper' end
   return choice(pool)
 end
 
@@ -699,7 +720,7 @@ local function startLevel()
   local l = run.level
   arena = {
     units = {}, alive = {}, enemies = {}, projs = {}, eprojs = {}, areas = {}, summons = {},
-    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0,
+    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0, kx = 0, ky = 0,
     head = {x = AR.x1 + 200, y = (AR.y1 + AR.y2) / 2, a = 0},
     boss = isBoss(l), wave = 0, nextWave = 1.5, done = false, lost = false, endT = 0,
   }
@@ -755,7 +776,7 @@ local function hurtUnit(u, dmg, force)
     burst(u.x, u.y, u.color, 24, 240)
     play('die')
     shake(8)
-    addText(u.x, u.y - 24, u.def.name .. ' died!', COL.red, true)
+    addText(u.x, u.y - 24, u.def.name .. ' [terminated]', COL.red, true)
   end
 end
 
@@ -793,6 +814,10 @@ local function updateSnake(dt)
   h.a = h.a + turn * TURN_SPEED * dt
   h.x = h.x + math.cos(h.a) * SNAKE_SPEED * dt
   h.y = h.y + math.sin(h.a) * SNAKE_SPEED * dt
+  -- shove from repulsor pulses, fading out
+  h.x, h.y = h.x + arena.kx * dt, h.y + arena.ky * dt
+  local kd = math.max(0, 1 - dt * 5)
+  arena.kx, arena.ky = arena.kx * kd, arena.ky * kd
   local hit = false
   if h.x < AR.x1 + UR then h.x = AR.x1 + UR; h.a = math.pi - h.a; hit = true
   elseif h.x > AR.x2 - UR then h.x = AR.x2 - UR; h.a = math.pi - h.a; hit = true end
@@ -922,7 +947,7 @@ local function updateAreas(dt)
       if not a.fired then
         a.fired = true
         if not a.ling then
-          hitArea(a)
+          if not a.visual then hitArea(a) end
           if not a.faint then play('explode'); shake(a.r > 50 and 4 or 2) end
         end
       end
@@ -969,6 +994,35 @@ local function updateSummons(dt)
     end
     if s.life <= 0 then table.remove(arena.summons, i) end
   end
+end
+
+-- kamikaze reached the snake: blow up, hurting nearby segments (no kill reward)
+local function kamikazeBoom(e)
+  e.dead = true
+  local R = 50
+  for _, u in ipairs(arena.alive) do
+    if dist(e.x, e.y, u.x, u.y) < R + UR then hurtUnit(u, e.dmg * 2.5) end
+  end
+  blast(e.x, e.y, R, 0, nil, {visual = true})
+  burst(e.x, e.y, e.d.color, 18, 220)
+  shake(6)
+end
+
+-- repulsor pulse: damages segments in range and shoves the head away
+local REPULSE_R = 110
+local function repulse(e)
+  for _, u in ipairs(arena.alive) do
+    if dist(e.x, e.y, u.x, u.y) < REPULSE_R + UR then hurtUnit(u, e.dmg) end
+  end
+  local h = arena.head
+  if dist(e.x, e.y, h.x, h.y) < REPULSE_R + 40 then
+    local nx, ny = norm(h.x - e.x, h.y - e.y)
+    arena.kx, arena.ky = nx * 340, ny * 340
+    h.a = math.atan2(ny, nx)
+  end
+  blast(e.x, e.y, REPULSE_R, 0, nil, {visual = true, faint = true})
+  play('wall')
+  shake(4)
 end
 
 local function bossAI(e, nx, ny, dt)
@@ -1021,6 +1075,35 @@ local function updateEnemies(dt)
             e.st = rr(2.2, 3.2)
             enemyShoot(e.x, e.y, math.atan2(ny, nx), 150, e.dmg)
           end
+        elseif tp == 'kamikaze' then
+          if e.cs == 'arm' then
+            dx, dy = nx * e.speed * 0.3, ny * e.speed * 0.3
+            e.ct = e.ct - dt
+            if e.ct <= 0 then kamikazeBoom(e) end
+          else
+            dx, dy = nx * e.speed, ny * e.speed
+            if td < 45 then e.cs, e.ct = 'arm', 0.45 end
+          end
+        elseif tp == 'repulsor' then
+          if td > 120 then dx, dy = nx * e.speed, ny * e.speed end
+          if td < 200 then
+            e.st = e.st - dt
+            if e.st <= 0 then e.st = rr(2.8, 3.6); repulse(e) end
+          end
+        elseif tp == 'sniper' then
+          if e.cs == 'aim' then
+            e.ct = e.ct - dt
+            if e.ct <= 0 then
+              enemyShoot(e.x, e.y, e.ca, 430, e.dmg)
+              play('shoot', 0.6)
+              e.cs, e.st = 'walk', rr(3, 4)
+            end
+          else
+            if td > 330 then dx, dy = nx * e.speed, ny * e.speed
+            elseif td < 240 then dx, dy = -nx * e.speed, -ny * e.speed end
+            e.st = e.st - dt
+            if e.st <= 0 and td < 430 then e.cs, e.ct, e.ca = 'aim', 0.9, math.atan2(ny, nx) end
+          end
         elseif tp == 'charger' or tp == 'boss' then
           if e.cs == 'wind' then
             e.ct = e.ct - dt
@@ -1050,14 +1133,14 @@ local function updateEnemies(dt)
       e.x, e.y = e.x + (e.vx + e.kx) * dt, e.y + (e.vy + e.ky) * dt
       local kd = math.max(0, 1 - dt * 5)
       e.kx, e.ky = e.kx * kd, e.ky * kd
-      if e.cs == 'wind' then
+      if e.cs == 'wind' or e.cs == 'aim' then
         e.a = e.ca
       elseif e.vx * e.vx + e.vy * e.vy > 4 then
         e.a = math.atan2(e.vy, e.vx)
       end
       e.x, e.y = clamp(e.x, AR.x1 + e.r, AR.x2 - e.r), clamp(e.y, AR.y1 + e.r, AR.y2 - e.r)
 
-      if e.spawnT <= 0 then
+      if e.spawnT <= 0 and not e.dead then
         for _, u in ipairs(arena.alive) do
           if dist(e.x, e.y, u.x, u.y) < e.r + UR then
             if e.ccd <= 0 then
@@ -1172,7 +1255,7 @@ local function updateArena(dt)
   end
   if #arena.alive == 0 then
     arena.lost, arena.endT = true, 2
-    banner('DEFEAT', nil, COL.red)
+    banner('KERNEL PANIC', 'not syncing: all units terminated', COL.red)
     return
   end
   if arena.wave < arena.waves then
@@ -1187,13 +1270,13 @@ local function updateArena(dt)
     arena.done, arena.endT = true, 2
     for _, c in ipairs(arena.coins) do run.gold = run.gold + c.value end
     arena.coins = {}
-    banner(run.level >= MAX_LEVEL and 'VICTORY!' or 'LEVEL COMPLETE', nil, COL.gold)
+    banner(run.level >= MAX_LEVEL and 'EXIT 0' or 'LEVEL CLEARED', '[  OK  ] all hostile processes killed', COL.green)
     play('buy')
   end
 end
 
 ---------------------------------------------------------------------------
--- drawing helpers (light dashboard look: white cards, ink bars, one pink accent)
+-- drawing helpers (terminal look: bordered panels, monospace, phosphor green, CRT scanlines)
 ---------------------------------------------------------------------------
 local function fontH(f) return fonts[f or 'm']:getHeight() / scale end
 
@@ -1207,15 +1290,19 @@ local function poly(mode, x, y, r, n, rot)
   lg.polygon(mode, pts)
 end
 
--- white rounded card with a soft drop shadow
-local function card(x, y, w, h, r)
-  r = r or 10
-  for i = 1, 4 do
-    lg.setColor(0, 0, 0, 0.018)
-    lg.rectangle('fill', x - i, y - i + 3, w + i * 2, h + i * 2, r + i, r + i)
-  end
+-- terminal panel: dark fill, thin border, bright corner ticks
+local function card(x, y, w, h)
   setc(COL.card)
-  lg.rectangle('fill', x, y, w, h, r, r)
+  lg.rectangle('fill', x, y, w, h)
+  lg.setLineWidth(1)
+  setc(COL.line)
+  lg.rectangle('line', x + 0.5, y + 0.5, w - 1, h - 1)
+  setc(COL.mid)
+  local t = 6
+  lg.line(x, y + t, x, y, x + t, y)
+  lg.line(x + w - t, y, x + w, y, x + w, y + t)
+  lg.line(x, y + h - t, x, y + h, x + t, y + h)
+  lg.line(x + w - t, y + h, x + w, y + h, x + w, y + h - t)
 end
 
 -- small rounded tag, returns its width
@@ -1224,7 +1311,7 @@ local function pill(label, x, y, fg, bg, f)
   local h = fontH(f) + 4
   local w = textW(label, f) + 14
   setc(bg)
-  lg.rectangle('fill', x, y, w, h, h / 2, h / 2)
+  lg.rectangle('fill', x, y, w, h, 2, 2)
   setc(fg)
   text(label, x + 7, y + 2, f)
   return w
@@ -1282,14 +1369,14 @@ local function marker(x, y, r, what, fill, lv, a, noGlyph)
   lg.rotate(a or 0)
   if lv and lv >= 2 then
     lg.setLineWidth(2)
-    setc(lv == 3 and COL.green or COL.ink, 0.85)
+    setc(lv == 3 and COL.gold or COL.ink, 0.85)
     lg.rectangle('line', -w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 4, 4)
   end
   setc(fill or color)
   lg.rectangle('fill', -w / 2, -h / 2, w, h, 3, 3)
   lg.pop()
   if not noGlyph then
-    setc(lum(color) > 0.6 and COL.ink or COL.card)
+    setc(lum(color) > 0.5 and COL.bg or COL.ink)
     glyph(cl, x, y, r * 0.38)
   end
 end
@@ -1297,7 +1384,7 @@ end
 local function classLine(classes)
   local t = {}
   for i, cl in ipairs(classes) do t[i] = CLASSES[cl].name end
-  return table.concat(t, ' · ')
+  return table.concat(t, '/')
 end
 
 ---------------------------------------------------------------------------
@@ -1315,6 +1402,18 @@ local function drawEnemy(e)
     local len = tp == 'boss' and 240 or 170
     lg.line(e.x, e.y, e.x + math.cos(e.ca) * len, e.y + math.sin(e.ca) * len)
   end
+  if tp == 'sniper' and e.cs == 'aim' then
+    setc(COL.pink, 0.35 + 0.35 * (1 - e.ct / 0.9))
+    lg.setLineWidth(1.5)
+    lg.line(e.x, e.y, e.x + math.cos(e.ca) * 430, e.y + math.sin(e.ca) * 430)
+  end
+  if tp == 'repulsor' and e.st < 0.8 and e.stun <= 0 then
+    local p = 1 - e.st / 0.8
+    setc(COL.pink, 0.5)
+    lg.setLineWidth(1.5)
+    dashedCircle(e.x, e.y, REPULSE_R * p, 14, time * 3)
+  end
+  if tp == 'kamikaze' and e.cs == 'arm' and math.floor(time * 20) % 2 == 0 then c = COL.ink end
   setc(c, alpha)
   lg.push()
   lg.translate(e.x, e.y)
@@ -1332,6 +1431,18 @@ local function drawEnemy(e)
   elseif tp == 'splitter' or tp == 'mini' then
     lg.circle('fill', 0, 0, r)
     if tp == 'splitter' then setc(COL.card, 0.6); lg.setLineWidth(2); lg.line(-r * 0.7, 0, r * 0.7, 0) end
+  elseif tp == 'kamikaze' then
+    if e.cs == 'arm' then r = r * 1.3 end
+    -- arrowhead (two triangles, since filled polygons must be convex)
+    lg.polygon('fill', r * 1.4, 0, -r, -r, -r * 0.3, 0)
+    lg.polygon('fill', r * 1.4, 0, -r * 0.3, 0, -r, r)
+  elseif tp == 'repulsor' then
+    lg.circle('fill', 0, 0, r * 0.75)
+    lg.setLineWidth(2.5)
+    lg.circle('line', 0, 0, r * 1.15)
+  elseif tp == 'sniper' then
+    lg.rectangle('fill', -r * 1.2, -r * 0.45, r * 2.4, r * 0.9, 2, 2)
+    lg.rectangle('fill', -r * 0.5, -r * 0.8, r, r * 1.6, 2, 2)
   elseif tp == 'boss' then
     lg.rotate(time * 0.8)
     poly('fill', 0, 0, r, 6, 0)
@@ -1355,7 +1466,7 @@ local function drawSnake()
     marker(u.x, u.y, 8.5, u.def, u.flash > 0 and COL.red or nil, u.lv, u.a, head)
     if head then
       local ca, sa = math.cos(u.a), math.sin(u.a)
-      setc(lum(u.color) > 0.6 and COL.ink or COL.card)
+      setc(lum(u.color) > 0.5 and COL.bg or COL.ink)
       lg.circle('fill', u.x + ca * 4 - sa * 3.5, u.y + sa * 4 + ca * 3.5, 1.9)
       lg.circle('fill', u.x + ca * 4 + sa * 3.5, u.y + sa * 4 - ca * 3.5, 1.9)
     end
@@ -1375,10 +1486,19 @@ local function drawArena()
   lg.push()
   lg.translate(sx, sy)
 
-  card(AR.x1, AR.y1, AR.x2 - AR.x1, AR.y2 - AR.y1, 12)
-  lg.setLineWidth(1)
+  card(AR.x1, AR.y1, AR.x2 - AR.x1, AR.y2 - AR.y1)
+  lg.setScissor(ox + AR.x1 * scale, oy + AR.y1 * scale, (AR.x2 - AR.x1) * scale, (AR.y2 - AR.y1) * scale)
+  -- memory map: dotted grid with hex addresses down the left edge
   setc(COL.grid)
-  for y = AR.y2 - 30, AR.y1 + 20, -56 do lg.line(AR.x1 + 18, y, AR.x2 - 18, y) end
+  for y = AR.y1 + 28, AR.y2 - 10, 32 do
+    for x = AR.x1 + 64, AR.x2 - 12, 32 do lg.rectangle('fill', x, y, 1.5, 1.5) end
+  end
+  for i, y in ipairs({AR.y1 + 22, AR.y1 + 118, AR.y1 + 214, AR.y1 + 310, AR.y1 + 406}) do
+    setc(COL.light)
+    text(('0x%04X'):format(0xA000 + (i - 1) * 0x0C00), AR.x1 + 8, y, 's')
+  end
+  setc(COL.light)
+  text('/dev/arena0', AR.x2 - 210, AR.y2 - 18, 's', 'right', 200)
 
   for _, s in ipairs(arena.spawns) do
     local p = 1 - s.t / s.max
@@ -1387,30 +1507,33 @@ local function drawArena()
     setc(COL.pink, 0.9)
     lg.setLineWidth(1.5)
     dashedCircle(s.x, s.y, 26 - 12 * p, 10, time * 2)
+    setc(COL.pink, 0.7)
+    ctext('fork()', s.x, s.y - 40, 's')
   end
 
   for _, a in ipairs(arena.areas) do
     if a.delay > 0 then
       local p = 1 - a.delay / math.max(0.01, a.maxdelay)
-      setc(COL.ink, 0.08)
+      setc(COL.cyan, 0.1)
       lg.circle('fill', a.x, a.y, a.r * p)
-      setc(COL.ink, 0.7)
+      setc(COL.cyan, 0.7)
       lg.setLineWidth(1.5)
       dashedCircle(a.x, a.y, a.r, 12, time)
     elseif a.ling then
       local alpha = math.min(1, a.dur * 2)
-      setc(COL.mid, 0.10 * alpha)
+      setc(COL.purple, 0.10 * alpha)
       lg.circle('fill', a.x, a.y, a.r)
-      setc(COL.mid, 0.6 * alpha)
+      setc(COL.purple, 0.6 * alpha)
       lg.setLineWidth(1.5)
       dashedCircle(a.x, a.y, a.r, 14, time * 0.8)
     else
       local p = a.age / 0.3
       local alpha = (1 - p) * (a.faint and 0.35 or 1)
       local rad = a.r * (0.6 + 0.4 * p)
-      setc(a.src and a.src.color or COL.ink, alpha * 0.15)
+      local ac = a.visual and COL.pink or (a.src and a.src.color or COL.ink)
+      setc(ac, alpha * 0.15)
       lg.circle('fill', a.x, a.y, rad)
-      setc(a.src and a.src.color or COL.ink, alpha * 0.8)
+      setc(ac, alpha * 0.8)
       lg.setLineWidth(2)
       lg.circle('line', a.x, a.y, rad)
     end
@@ -1464,7 +1587,7 @@ local function drawArena()
   for _, p in ipairs(arena.eprojs) do
     setc(COL.pink)
     lg.circle('fill', p.x, p.y, p.r)
-    setc(COL.card)
+    setc(COL.bg)
     lg.circle('fill', p.x, p.y, p.r * 0.4)
   end
 
@@ -1478,32 +1601,33 @@ local function drawArena()
     setc(t.c, math.min(1, t.life / t.max * 2))
     ctext(t.s, t.x, t.y - p * 18, t.big and 'm' or 's')
   end
+  lg.setScissor()
   lg.pop()
 
   -- HUD
   setc(COL.dim)
-  text('Level', 24, 4, 's')
-  local ls = run.level .. ' / ' .. MAX_LEVEL
+  text('root@plotline:~/arena#', 24, 4, 's')
+  local ls = ('level %02d/%d'):format(run.level, MAX_LEVEL)
   setc(COL.ink)
   text(ls, 24, 17, 'l')
   local px = 24 + textW(ls, 'l') + 12
   local boss
   for _, e in ipairs(arena.enemies) do if e.type == 'boss' then boss = e end end
   if arena.boss then
-    px = px + pill(run.level == MAX_LEVEL and 'Final boss' or 'Boss', px, 24, COL.card, COL.pink) + 6
+    px = px + pill(run.level == MAX_LEVEL and 'FINAL BOSS' or 'BOSS', px, 24, COL.bg, COL.red) + 6
   else
-    px = px + pill(('Wave %d/%d'):format(math.max(1, arena.wave), arena.waves), px, 24, COL.mintText, COL.mintSoft) + 6
+    px = px + pill(('wave %d/%d'):format(math.max(1, arena.wave), arena.waves), px, 24, COL.mintText, COL.mintSoft) + 6
   end
-  pill(#arena.enemies .. ' enemies', px, 24, COL.mid, COL.grid)
+  pill(#arena.enemies .. ' hostile procs', px, 24, COL.red, COL.pinkSoft)
   setc(COL.dim)
-  text('Total gold', W - 224, 4, 's', 'right', 200)
-  setc(COL.ink)
+  text('gold', W - 224, 4, 's', 'right', 200)
+  setc(COL.gold)
   text('$' .. run.gold, W - 224, 17, 'l', 'right', 200)
   if boss then
-    setc(COL.line)
-    lg.rectangle('fill', W / 2 + 10, 26, 240, 9, 4.5, 4.5)
-    setc(COL.ink)
-    lg.rectangle('fill', W / 2 + 10, 26, 240 * math.max(0, boss.hp / boss.maxhp), 9, 4.5, 4.5)
+    setc(COL.grid)
+    lg.rectangle('fill', W / 2 + 10, 26, 240, 9)
+    setc(COL.red)
+    lg.rectangle('fill', W / 2 + 10, 26, 240 * math.max(0, boss.hp / boss.maxhp), 9)
   end
 
   if arena.banner then
@@ -1519,9 +1643,9 @@ local function drawArena()
     setc(COL.bg, 0.85)
     lg.rectangle('fill', 0, 0, W, H)
     setc(COL.ink)
-    ctext('Paused', W / 2, 200, 'xl')
+    ctext('SIGSTOP', W / 2, 200, 'xl')
     setc(COL.mid)
-    ctext('P / Esc to resume     Q to quit to menu', W / 2, 290, 'm')
+    ctext('[P] / [Esc] resume (SIGCONT)     [Q] quit to menu', W / 2, 280, 'm')
   end
 end
 
@@ -1535,25 +1659,25 @@ local function sellRect(i) local r = rowRect(i); return {x = r.x + r.w - 58, y =
 local function upRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 3, w = 20, h = 16} end
 local function downRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 21, w = 20, h = 16} end
 local REROLL_BTN = {x = 360, y = 292, w = 200, h = 40}
-local SHOPUP_BTN = {x = 572, y = 292, w = 144, h = 40}
+local SHOPUP_BTN = {x = 568, y = 292, w = 152, h = 40}
 local START_BTN = {x = 728, y = 292, w = 208, h = 40}
-local CATALOG_BTN = {x = W - 24 - 104, y = 12, w = 104, h = 30}
+local CATALOG_BTN = {x = W - 24 - 118, y = 12, w = 118, h = 30}
 local CAT = {x = 40, y = 30, w = 880, h = 480}
-local CAT_CLOSE = {x = CAT.x + CAT.w - 100, y = CAT.y + 16, w = 80, h = 28}
-local TIER_COL = {{COL.mid, COL.grid}, {COL.mintText, COL.mintSoft}, {COL.card, COL.ink}, {COL.card, COL.pink}}
+local CAT_CLOSE = {x = CAT.x + CAT.w - 120, y = CAT.y + 16, w = 100, h = 28}
+local TIER_COL = {{COL.mid, COL.grid}, {COL.mintText, COL.mintSoft}, {COL.bg, COL.cyan}, {COL.bg, COL.gold}}
 
 local function button(r, label, enabled, hover, primary)
-  local rad = math.min(r.h / 2, 10)
   if primary then
-    setc(not enabled and COL.light or (hover and COL.mid or COL.ink))
-    lg.rectangle('fill', r.x, r.y, r.w, r.h, rad, rad)
-    setc(COL.card)
+    -- inverted video, like a selected terminal line
+    setc(not enabled and COL.light or (hover and COL.ink or COL.green))
+    lg.rectangle('fill', r.x, r.y, r.w, r.h)
+    setc(COL.bg)
   else
     setc((hover and enabled) and COL.hover or COL.card)
-    lg.rectangle('fill', r.x, r.y, r.w, r.h, rad, rad)
+    lg.rectangle('fill', r.x, r.y, r.w, r.h)
     lg.setLineWidth(1)
-    setc((hover and enabled) and COL.ink or COL.line)
-    lg.rectangle('line', r.x, r.y, r.w, r.h, rad, rad)
+    setc((hover and enabled) and COL.green or COL.line)
+    lg.rectangle('line', r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
     setc(enabled and COL.ink or COL.dim)
   end
   local f = r.h >= 30 and 'm' or 's'
@@ -1562,15 +1686,17 @@ end
 
 -- every unit the shop can roll, grouped by tier, with the odds for the current shop level
 local function drawCatalogue(mx, my)
-  setc(COL.ink, 0.35)
+  setc(COL.bg, 0.8)
   lg.rectangle('fill', 0, 0, W, H)
-  card(CAT.x, CAT.y, CAT.w, CAT.h, 14)
+  card(CAT.x, CAT.y, CAT.w, CAT.h)
+  setc(COL.dim)
+  text('$ man plotline-units', CAT.x + 20, CAT.y + 8, 's')
   setc(COL.ink)
-  text('Catalogue', CAT.x + 20, CAT.y + 14, 'l')
+  text('Catalogue', CAT.x + 20, CAT.y + 20, 'l')
   setc(COL.dim)
   text(('Every unit the shop can offer. Odds shown for shop level %d; upgrade the shop to unlock higher tiers.'):format(run.shopLevel),
     CAT.x + 20, CAT.y + 46, 's')
-  button(CAT_CLOSE, 'Close', true, inRect(mx, my, CAT_CLOSE))
+  button(CAT_CLOSE, '[Esc] close', true, inRect(mx, my, CAT_CLOSE))
 
   local odds, hovered = SHOP_ODDS[run.shopLevel], nil
   local colW = (CAT.w - 40 - 3 * 14) / 4
@@ -1580,14 +1706,14 @@ local function drawCatalogue(mx, my)
     local label = 'Tier ' .. tier
     pill(label, cx, cy, TIER_COL[tier][1], TIER_COL[tier][2])
     setc(avail and COL.mid or COL.light)
-    text(('$%d each  ·  %d%% chance'):format(COST[tier], math.floor(odds[tier] * 100 + 0.5)), cx + pillW(label) + 8, cy + 2, 's')
+    text(('$%d  %3d%%'):format(COST[tier], math.floor(odds[tier] * 100 + 0.5)), cx + pillW(label) + 8, cy + 2, 's')
     for i, key in ipairs(UNIT_TIERS[tier]) do
       local def = UNITS[key]
       local r = {x = cx, y = cy + 24 + (i - 1) * 26, w = colW, h = 25}
       if inRect(mx, my, r) then
         hovered = def
         setc(COL.hover)
-        lg.rectangle('fill', r.x - 4, r.y, r.w + 8, r.h, 6, 6)
+        lg.rectangle('fill', r.x - 4, r.y, r.w + 8, r.h)
       end
       marker(r.x + 11, r.y + 13, 7.5, def)
       setc(avail and COL.ink or COL.dim)
@@ -1628,49 +1754,52 @@ local function drawShop()
   local l = run.level
 
   -- header
-  local ls = ('Level %d / %d'):format(l, MAX_LEVEL)
+  local ls = ('level %02d/%d'):format(l, MAX_LEVEL)
   setc(COL.dim)
-  text('Next up', 24, 6, 's')
+  text('root@plotline:~/shop# next', 24, 6, 's')
   setc(COL.ink)
   text(ls, 24, 19, 'l')
-  if isBoss(l) then pill('Boss', 24 + textW(ls, 'l') + 12, 26, COL.card, COL.pink) end
+  if isBoss(l) then pill('BOSS', 24 + textW(ls, 'l') + 12, 26, COL.bg, COL.red) end
   -- gold sits left of the catalogue button in the top-right corner
   local gs, gx = '$' .. run.gold, CATALOG_BTN.x - 16
   setc(COL.dim)
-  text('Total gold', gx - 200, 6, 's', 'right', 200)
-  setc(COL.ink)
+  text('gold', gx - 200, 6, 's', 'right', 200)
+  setc(COL.gold)
   text(gs, gx - 200, 19, 'l', 'right', 200)
   if run.lastIncome then
     local s = '+' .. run.lastIncome
     pill(s, gx - textW(gs, 'l') - pillW(s) - 10, 26, COL.mintText, COL.mintSoft)
   end
-  button(CATALOG_BTN, 'Catalogue', true, inRect(mx, my, CATALOG_BTN))
+  button(CATALOG_BTN, '[C] catalog', true, inRect(mx, my, CATALOG_BTN))
 
   -- shop level and the tier odds it gives
-  local hx = 300
+  local hx = 312
   setc(COL.dim)
-  text(('Shop level %d / %d  ·  tier odds'):format(run.shopLevel, SHOP_MAX), hx, 6, 's')
+  text(('shop lv%d/%d  ·  tier odds'):format(run.shopLevel, SHOP_MAX), hx, 6, 's')
   local odds = SHOP_ODDS[run.shopLevel]
   for k = 1, 4 do
     local s = ('T%d  %d%%'):format(k, math.floor(odds[k] * 100 + 0.5))
     if odds[k] > 0 then
       hx = hx + pill(s, hx, 24, TIER_COL[k][1], TIER_COL[k][2]) + 6
     else
-      hx = hx + pill(s, hx, 24, COL.light, COL.hover) + 6
+      hx = hx + pill(s, hx, 24, COL.light, COL.card) + 6
     end
   end
 
   -- party
-  card(SH.px - 8, 56, SH.pw + 16, 444, 12)
+  card(SH.px - 8, 56, SH.pw + 16, 444)
   setc(COL.ink)
-  text('Party', SH.px + 4, 64, 'm')
-  pill(('%d / %d'):format(#run.party, maxUnits(l)), SH.px + 14 + textW('Party', 'm'), 65, COL.mid, COL.grid)
+  text('party/', SH.px + 4, 64, 'm')
+  pill(('%d/%d'):format(#run.party, maxUnits(l)), SH.px + 14 + textW('party/', 'm'), 65, COL.mid, COL.grid)
+  local ns = nextSlotLevel(l)
+  local slotTxt = ns and ('+1 slot @ lvl ' .. ns) or 'all slots open'
+  pill(slotTxt, SH.px + SH.pw - pillW(slotTxt) - 2, 65, ns and COL.mintText or COL.mid, ns and COL.mintSoft or COL.grid)
   for i, m in ipairs(run.party) do
     local r = rowRect(i)
     local lv = memberLevel(m)
     if inRect(mx, my, r) then
       setc(COL.hover)
-      lg.rectangle('fill', r.x - 2, r.y - 2, r.w + 4, r.h + 4, 8, 8)
+      lg.rectangle('fill', r.x - 2, r.y - 2, r.w + 4, r.h + 4)
     end
     if i < #run.party then
       setc(COL.grid)
@@ -1682,15 +1811,15 @@ local function drawShop()
     text(m.def.name, r.x + 38, r.y + 3, 'm')
     setc(COL.dim)
     text(classLine(m.def.classes), r.x + 38, r.y + 22, 's')
-    local tag = lv == 3 and 'Lv3 max' or ('Lv%d  %d/%d'):format(lv, m.copies, lv == 1 and 3 or 9)
-    pill(tag, r.x + 46 + textW(m.def.name, 'm'), r.y + 4, lv == 3 and COL.card or COL.mintText, lv == 3 and COL.pink or COL.mintSoft)
+    local tag = lv == 3 and 'Lv3 max' or ('Lv%d %d/%d'):format(lv, m.copies, lv == 1 and 3 or 9)
+    pill(tag, r.x + 46 + textW(m.def.name, 'm'), r.y + 4, lv == 3 and COL.bg or COL.mintText, lv == 3 and COL.gold or COL.mintSoft)
     if i > 1 then button(upRect(i), '^', true, inRect(mx, my, upRect(i))) end
     if i < #run.party then button(downRect(i), 'v', true, inRect(mx, my, downRect(i))) end
-    button(sellRect(i), 'Sell $' .. sellValue(m), true, inRect(mx, my, sellRect(i)))
+    button(sellRect(i), 'kill $' .. sellValue(m), true, inRect(mx, my, sellRect(i)))
   end
   setc(COL.dim)
-  if #run.party == 0 then text('Your party is empty.\nRecruit a unit to start!', SH.px + 4, SH.py + 4, 'm') end
-  text('The first unit leads the line.\n3 copies = Lv2, 9 copies = Lv3.', SH.px + 4, 466, 's')
+  if #run.party == 0 then text('party/ is empty.\nrecruit a unit to boot.', SH.px + 4, SH.py + 4, 'm') end
+  text('# first unit = head of the snake\n# 3 copies -> Lv2, 9 copies -> Lv3', SH.px + 4, 466, 's')
 
   -- recruit cards
   for i = 1, 4 do
@@ -1702,15 +1831,15 @@ local function drawShop()
       local owned = findMember(key)
       local cost = COST[def.tier]
       local can = run.gold >= cost and (owned and owned.copies < 9 or (not owned and #run.party < maxUnits(l)))
-      card(r.x, r.y, r.w, r.h, 10)
+      card(r.x, r.y, r.w, r.h)
       if hover then
-        lg.setLineWidth(1.5)
-        setc(COL.ink)
-        lg.rectangle('line', r.x, r.y, r.w, r.h, 10, 10)
+        lg.setLineWidth(1)
+        setc(COL.green)
+        lg.rectangle('line', r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
       end
       pill('Tier ' .. def.tier, r.x + 8, r.y + 8, TIER_COL[def.tier][1], TIER_COL[def.tier][2])
       local cs = '$' .. cost
-      pill(cs, r.x + r.w - 10 - pillW(cs), r.y + 8, can and COL.card or COL.dim, can and COL.pink or COL.grid)
+      pill(cs, r.x + r.w - 10 - pillW(cs), r.y + 8, can and COL.bg or COL.dim, can and COL.gold or COL.grid)
       marker(r.x + r.w / 2, r.y + 46, 12, def)
       setc(COL.ink)
       text(def.name, r.x, r.y + 66, 'm', 'center', r.w)
@@ -1718,29 +1847,29 @@ local function drawShop()
       text(classLine(def.classes), r.x, r.y + 86, 's', 'center', r.w)
       setc(COL.dim)
       text(def.desc, r.x + 8, r.y + 104, 's', 'center', r.w - 16)
-      local status, fg, bg = 'New', COL.mid, COL.grid
-      if owned then status, fg, bg = ('Owned · Lv%d'):format(memberLevel(owned)), COL.mintText, COL.mintSoft
-      elseif #run.party >= maxUnits(l) then status = 'Party full' end
+      local status, fg, bg = 'new', COL.mid, COL.grid
+      if owned then status, fg, bg = ('owned · Lv%d'):format(memberLevel(owned)), COL.mintText, COL.mintSoft
+      elseif #run.party >= maxUnits(l) then status = 'party full' end
       pill(status, r.x + (r.w - pillW(status)) / 2, r.y + r.h - 24, fg, bg)
     else
       setc(COL.line)
       lg.setLineWidth(1)
-      lg.rectangle('line', r.x, r.y, r.w, r.h, 10, 10)
+      lg.rectangle('line', r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
       setc(COL.light)
-      text('Sold', r.x, r.y + r.h / 2 - 9, 'm', 'center', r.w)
+      text('[ sold ]', r.x, r.y + r.h / 2 - 9, 'm', 'center', r.w)
     end
   end
 
-  button(REROLL_BTN, 'Reroll  ·  $' .. REROLL_COST, run.gold >= REROLL_COST, inRect(mx, my, REROLL_BTN))
+  button(REROLL_BTN, '[R] reroll $' .. REROLL_COST, run.gold >= REROLL_COST, inRect(mx, my, REROLL_BTN))
   local maxed = run.shopLevel >= SHOP_MAX
   local upCost = SHOP_UP_COST[run.shopLevel]
-  button(SHOPUP_BTN, maxed and 'Shop maxed' or ('Upgrade  ·  $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
-  button(START_BTN, 'Start level ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
+  button(SHOPUP_BTN, maxed and 'shop maxed' or ('[U] upgrade $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
+  button(START_BTN, '[Space] run level ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
 
   -- class bonuses as a horizontal bar chart
-  card(360, 340, 576, 184, 12)
+  card(360, 340, 576, 184)
   setc(COL.ink)
-  text('Class bonuses', 376, 345, 'm')
+  text('class bonuses', 376, 345, 'm')
   local counts = classCounts()
   for i, cl in ipairs(CLASS_ORDER) do
     local c = CLASSES[cl]
@@ -1752,17 +1881,17 @@ local function drawShop()
     text(c.name, 392, y, 's')
     local bx, bw = 470, 150
     setc(COL.grid)
-    lg.rectangle('fill', bx, y + 4, bw, 7, 3.5, 3.5)
+    lg.rectangle('fill', bx, y + 4, bw, 7)
     local f = math.min(1, n / c.tiers[2])
     if f > 0 then
-      setc(tier > 0 and COL.pink or COL.ink, tier > 0 and 1 or 0.5)
-      lg.rectangle('fill', bx, y + 4, math.max(7, bw * f), 7, 3.5, 3.5)
+      setc(tier > 0 and COL.green or COL.mid, tier > 0 and 1 or 0.6)
+      lg.rectangle('fill', bx, y + 4, math.max(7, bw * f), 7)
     end
-    setc(COL.card)
+    setc(COL.bg)
     lg.setLineWidth(2)
     local tx = bx + bw * c.tiers[1] / c.tiers[2]
     lg.line(tx, y + 3, tx, y + 12)
-    setc(tier > 0 and COL.pink or COL.dim)
+    setc(tier > 0 and COL.green or COL.dim)
     text(('%d  (%d/%d)'):format(n, c.tiers[1], c.tiers[2]), 628, y, 's')
     if tier > 0 then
       setc(COL.ink)
@@ -1779,7 +1908,7 @@ local function drawShop()
   end
 
   setc(COL.dim)
-  text('Space: start  ·  R: reroll  ·  U: upgrade  ·  C: catalogue', SH.px, H - 26, 's')
+  text('right-click: kill unit  ·  [Esc] menu', SH.px, H - 26, 's')
 
   if run.catalog then drawCatalogue(mx, my) end
 end
@@ -1787,58 +1916,81 @@ end
 ---------------------------------------------------------------------------
 -- drawing: menus
 ---------------------------------------------------------------------------
-local MENU_BTN = {x = 212, y = 214, w = 200, h = 40}
+local MENU_BTN = {x = 182, y = 290, w = 220, h = 38}
+local BOOT_LOG = {
+  'plotline: booting kernel 25.0-snake (tty1)',
+  'mm: mapped 40 units into /dev/party',
+  'sched: registered 11 classes, 5 shop levels',
+  'net: hostile processes detected on /dev/arena0',
+  'init: waiting for operator input...',
+}
 
 local function drawMenu()
   local mx, my = getMouse()
-  card(180, 60, 600, 410, 16)
+  card(150, 36, 660, 446)
+  setc(COL.grid)
+  lg.rectangle('fill', 151, 37, 658, 20)
+  setc(COL.dim)
+  text('tty1 - plotline', 162, 40, 's')
+  setc(COL.red); lg.circle('fill', 786, 47, 4)
+  setc(COL.gold); lg.circle('fill', 772, 47, 4)
+  setc(COL.green); lg.circle('fill', 758, 47, 4)
 
-  -- a little snake chasing enemies around the card
+  -- dmesg-style boot log, typed out one line at a time
+  local shown = math.min(#BOOT_LOG, math.floor(time / 0.35) + 1)
+  for i = 1, shown do
+    setc(COL.dim)
+    text(('[%12.6f]'):format((i - 1) * 0.004211 + 0.000001), 172, 66 + (i - 1) * 16, 's')
+    setc(i == #BOOT_LOG and COL.ink or COL.mid)
+    text(BOOT_LOG[i], 282, 66 + (i - 1) * 16, 's')
+  end
+
+  setc(COL.green)
+  text('PLOTLINE', 180, 160, 'xl')
+  if math.floor(time * 2) % 2 == 0 then
+    lg.rectangle('fill', 184 + textW('PLOTLINE', 'xl'), 172, 26, 52)
+  end
+  setc(COL.mid)
+  text('kernel-mode snake auto-battler. you steer; your units kill processes.', 182, 240, 's')
+  setc(COL.dim)
+  text('25 levels  ·  40 units  ·  11 classes  ·  5 shop levels', 182, 258, 's')
+  button(MENU_BTN, '[Space] ./plotline --run', true, inRect(mx, my, MENU_BTN), true)
+
+  -- a little snake chasing processes around the bottom of the window
   for k = 0, 4 do
     local t = time * 0.7 + k * 1.3
-    setc(COL.pink)
+    setc(COL.red)
     lg.push()
-    lg.translate(W / 2 + math.cos(t * 1.1 + k) * 150, 360 + math.sin(t * 1.7) * 45)
+    lg.translate(W / 2 + math.cos(t * 1.1 + k) * 150, 410 + math.sin(t * 1.7) * 35)
     lg.rotate(t * 2)
-    lg.rectangle('fill', -7, -7, 14, 14, 3, 3)
+    lg.rectangle('fill', -7, -7, 14, 14)
     lg.pop()
   end
   for i = 9, 0, -1 do
     local t = time * 1.3 - i * 0.11
-    local x, y = W / 2 + math.cos(t) * 230, 360 + math.sin(t * 2) * 55
-    local a = math.atan2(math.cos(t * 2) * 110, -math.sin(t) * 230)
+    local x, y = W / 2 + math.cos(t) * 250, 410 + math.sin(t * 2) * 42
+    local a = math.atan2(math.cos(t * 2) * 84, -math.sin(t) * 250)
     marker(x, y, 9, CLASS_ORDER[i % #CLASS_ORDER + 1], nil, nil, a, i == 0)
   end
 
-  setc(COL.ink)
-  text('PLOTLINE', 210, 78, 'xl')
-  pill('auto-battler', 216 + textW('PLOTLINE', 'xl') + 12, 112, COL.mintText, COL.mintSoft)
   setc(COL.mid)
-  text('A snake auto-battler: you steer, your heroes do the fighting.', 212, 160, 'm')
+  ctext('steer: [A]/[D] or [Left]/[Right]   ·   your units attack on their own', W / 2, 494, 's')
   setc(COL.dim)
-  text('25 levels  ·  40 units  ·  11 classes  ·  5 shop levels', 212, 182, 's')
-  button(MENU_BTN, 'Start run', true, inRect(mx, my, MENU_BTN), true)
-  setc(COL.dim)
-  text('or press Space', 426, 226, 's')
-
-  setc(COL.mid)
-  ctext('Steer with A / D or Left / Right. Your heroes attack automatically.', W / 2, 486, 'm')
-  setc(COL.dim)
-  ctext('Avoid walls and enemies. Recruit units, stack copies, combine classes.   P / Esc: pause', W / 2, 508, 's')
+  ctext('avoid the walls. ramming hurts both sides. [P] pause', W / 2, 512, 's')
 end
 
 local function drawEnd(title, c, sub)
-  card(230, 110, 500, 300, 16)
+  card(200, 110, 560, 300)
   setc(COL.dim)
-  ctext('Run summary', W / 2, 130, 's')
+  text('$ dmesg | tail -n 3', 222, 124, 's')
   setc(c)
-  ctext(title, W / 2, 148, 'xl')
+  ctext(title, W / 2, 150, 'xl')
   setc(COL.ink)
-  ctext(sub, W / 2, 236, 'm')
+  ctext(sub, W / 2, 232, 'm')
   local x = W / 2 - (#run.party - 1) * 15
   for i, m in ipairs(run.party) do marker(x + (i - 1) * 30, 290, 9, m.def, nil, memberLevel(m)) end
   setc(COL.dim)
-  ctext('Click or press Space to return to the menu', W / 2, 350, 's')
+  ctext('[Space] or click to reboot', W / 2, 350, 's')
 end
 
 ---------------------------------------------------------------------------
@@ -1871,9 +2023,12 @@ function love.draw()
   if state == 'menu' then drawMenu()
   elseif state == 'shop' then drawShop()
   elseif state == 'arena' then drawArena()
-  elseif state == 'gameover' then drawEnd('GAME OVER', COL.red, 'Your snake fell on level ' .. run.level)
-  elseif state == 'win' then drawEnd('VICTORY!', COL.gold, 'You conquered all ' .. MAX_LEVEL .. ' levels!')
+  elseif state == 'gameover' then drawEnd('KERNEL PANIC', COL.red, 'not syncing: snake died on level ' .. run.level)
+  elseif state == 'win' then drawEnd('EXIT 0', COL.green, 'all ' .. MAX_LEVEL .. ' levels cleared. the kernel is yours.')
   end
+  -- CRT scanlines
+  lg.setColor(0, 0, 0, 0.22)
+  for y = 0, H, 3 do lg.rectangle('fill', 0, y, W, 1) end
   lg.pop()
 end
 

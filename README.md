@@ -6,6 +6,8 @@ A snake auto-battler made with [LÖVE](https://love2d.org) 11. Steer a line of h
 - Merchants make money: enemies can drop coins, and merchants add interest, gold per level, or gold per kill.
 - The shop has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
 - Colliding with an enemy damages both sides. Rammers take half the collision damage and hit much harder.
+- Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the snake, and snipers with laser sights.
+- Terminal look: phosphor-green text in Roboto Mono, CRT scanlines, a dmesg-style boot screen.
 
 **Play in the browser:** https://ianbedard.github.io/plotline/
 
@@ -38,3 +40,7 @@ powershell -ExecutionPolicy Bypass -File build-web.ps1
 ```
 
 This refreshes the runtime files in `web/` and keeps the hand-written `web/index.html`. Pushing to `main` redeploys the page through GitHub Actions.
+
+## Credits
+
+Roboto Mono font: Copyright 2015 The Roboto Mono Project Authors, Apache License 2.0 (see `font/NOTICE.txt`).
