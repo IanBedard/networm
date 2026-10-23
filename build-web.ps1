@@ -22,7 +22,7 @@ node "$tmp\node_modules\love.js\index.js" -c -t Plotline -m 67108864 "$tmp\plotl
 New-Item -ItemType Directory -Force "$root\web" | Out-Null
 foreach ($f in 'love.js', 'love.wasm') { Copy-Item "$tmp\out\$f" "$root\web\$f" -Force }
 # the page streams the music itself, so it stays out of the (base64) game package
-Copy-Item "$root\music\madness.mp3" "$root\web\music.mp3" -Force
+Copy-Item "$root\music\memory.mp3" "$root\web\music.mp3" -Force
 
 # Ship the game package as a script (game-data.js) instead of a raw .data file, so it can be
 # hosted anywhere that serves .js; game.js is patched to take the bytes from Module.gameData.

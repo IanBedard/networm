@@ -2068,7 +2068,7 @@ end
 ---------------------------------------------------------------------------
 -- background music (desktop build). The web build leaves the track out of the
 -- game package and plays it from the page instead, so this simply finds no file there.
-local MUSIC_FILE = 'music/madness.mp3'
+local MUSIC_FILE = 'music/memory.mp3'
 local music, musicOn = nil, true
 
 function love.load()

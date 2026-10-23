@@ -45,6 +45,6 @@ This refreshes the runtime files in `web/` and keeps the hand-written `web/index
 
 ## Credits
 
-Music: [Madness - Jebediah: Disarmed](https://www.newgrounds.com/audio/listen/1627299) by Xtrullor feat. Cheshyre, licensed [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Newgrounds allows its use in web-based games; ask the artist before using it in a non-web build. Plotline is non-commercial.
+Music: [Memory](https://www.newgrounds.com/audio/listen/1628238) by Sunnexo (from *Netpunk*), licensed [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Newgrounds allows its use in web-based games; ask the artist before using it in a non-web build. Plotline is non-commercial.
 
 Roboto Mono font: Copyright 2015 The Roboto Mono Project Authors, Apache License 2.0 (see `font/NOTICE.txt`).
