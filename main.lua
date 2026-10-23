@@ -1978,7 +1978,7 @@ local function drawShop()
   end
 
   setc(COL.dim)
-  text('right-click: kill unit  ·  [Esc] menu', SH.px, H - 26, 's')
+  text('right-click: kill unit  ·  [Esc]x2 abandon run', SH.px, H - 26, 's')
 
   if run.catalog then drawCatalogue(mx, my) end
 end
@@ -2090,6 +2090,11 @@ end
 
 function love.resize(w, h) resize(w, h) end
 
+-- alt-tabbing or switching browser tabs mid-fight pauses instead of letting the worm crash
+function love.focus(f)
+  if not f and state == 'arena' and not arena.done and not arena.lost then paused = true end
+end
+
 function love.update(dt)
   dt = math.min(dt, 1 / 30)
   time = time + dt
@@ -2157,7 +2162,16 @@ function love.keypressed(key)
     elseif key == 'r' then reroll()
     elseif key == 'u' then upgradeShop()
     elseif key == 'c' then run.catalog = true; play('click')
-    elseif key == 'escape' then state = 'menu' end
+    elseif key == 'escape' then
+      -- leaving the market throws the run away, so it takes two presses
+      if run.quitArmed and time - run.quitArmed < 2.5 then
+        state = 'menu'
+      else
+        run.quitArmed = time
+        play('error')
+        shopMsg('Press [Esc] again to abandon this run', COL.red)
+      end
+    end
   elseif state == 'arena' then
     if key == 'p' or key == 'escape' then paused = not paused
     elseif key == 'q' and paused then paused = false; state = 'menu' end
