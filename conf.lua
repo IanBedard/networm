@@ -1,7 +1,7 @@
 function love.conf(t)
-  t.identity = "plotline"
+  t.identity = "networm"
   t.version = "11.4"
-  t.window.title = "Plotline"
+  t.window.title = "NetWorm"
   t.window.width = 1280
   t.window.height = 720
   t.window.resizable = true

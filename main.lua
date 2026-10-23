@@ -1,4 +1,4 @@
--- PLOTLINE - a kernel worm auto-battler. (LOVE 11.x)
+-- NETWORM - a kernel worm auto-battler. (LOVE 11.x)
 -- Steer a line of heroes that fight on their own. Recruit between
 -- levels, stack copies to rank them up, and combine classes for set bonuses.
 
@@ -1676,7 +1676,7 @@ local function drawArena()
 
   -- HUD
   setc(COL.dim)
-  text('root@plotline:~/arena#', 24, 4, 's')
+  text('root@networm:~/arena#', 24, 4, 's')
   local ls = ('level %02d/%d'):format(run.level, MAX_LEVEL)
   setc(COL.ink)
   text(ls, 24, 17, 'l')
@@ -1826,7 +1826,7 @@ local function drawShop()
   -- header
   local ls = ('level %02d/%d'):format(l, MAX_LEVEL)
   setc(COL.dim)
-  text('root@plotline:~/darkmarket#', 24, 6, 's')
+  text('root@networm:~/darkmarket#', 24, 6, 's')
   setc(COL.ink)
   text(ls, 24, 19, 'l')
   if isBoss(l) then pill('BOSS', 24 + textW(ls, 'l') + 12, 26, COL.bg, COL.red) end
@@ -2001,7 +2001,7 @@ local function drawMenu()
   setc(COL.grid)
   lg.rectangle('fill', 151, 37, 658, 20)
   setc(COL.dim)
-  text('tty1 - plotline', 162, 40, 's')
+  text('tty1 - networm', 162, 40, 's')
   setc(COL.red); lg.circle('fill', 786, 47, 4)
   setc(COL.gold); lg.circle('fill', 772, 47, 4)
   setc(COL.green); lg.circle('fill', 758, 47, 4)
@@ -2016,9 +2016,9 @@ local function drawMenu()
   end
 
   setc(COL.green)
-  text('PLOTLINE', 180, 160, 'xl')
+  text('NETWORM', 180, 160, 'xl')
   if math.floor(time * 2) % 2 == 0 then
-    lg.rectangle('fill', 184 + textW('PLOTLINE', 'xl'), 172, 26, 52)
+    lg.rectangle('fill', 184 + textW('NETWORM', 'xl'), 172, 26, 52)
   end
   setc(COL.mid)
   text('you are the operator. steer the worm; its modules kill every process in reach.', 182, 240, 's')

@@ -2,7 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Plotline</title>
+<title>NetWorm</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -92,13 +92,13 @@
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } h1::after { animation: none; } }
 </style>
 
-<script src="game-data.js?v=22fcdcc0"></script>
-<audio id="music" src="music.mp3?v=22fcdcc0" loop preload="auto"></audio>
+<script src="game-data.js?v=6d269130"></script>
+<audio id="music" src="music.mp3?v=6d269130" loop preload="auto"></audio>
 
 <div class="wrap">
-  <div class="prompt"><b>root@plotline</b>:~$ sudo insmod ./worm.ko</div>
+  <div class="prompt"><b>root@networm</b>:~$ sudo insmod ./worm.ko</div>
   <header>
-    <h1>PLOTLINE</h1>
+    <h1>NETWORM</h1>
     <span class="tag">kernel worm auto-battler</span>
     <p>You are the operator. Inject the worm, steer it through the kernel, and let its modules kill every process in the way. Survive 25 levels to get root.</p>
   </header>
@@ -106,7 +106,7 @@
   <div class="stage" id="stage">
     <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
     <div class="overlay" id="overlay">
-      <strong id="status">booting plotline…</strong>
+      <strong id="status">booting networm…</strong>
       <div class="bar"><i id="progress"></i></div>
       <span>loading ~5 MB into memory, first boot only</span>
     </div>
@@ -213,7 +213,7 @@
 
   var Module = {
     arguments: ['./game.love'],
-    gameData: decodeGameData(window.PLOTLINE_DATA),
+    gameData: decodeGameData(window.NETWORM_DATA),
     INITIAL_MEMORY: 67108864,
     printErr: console.error.bind(console),
     canvas: canvas,
@@ -249,5 +249,5 @@
     Love(Module);
   }
 </script>
-<script src="game.js?v=22fcdcc0"></script>
-<script async src="love.js?v=22fcdcc0" onload="applicationLoad()"></script>
+<script src="game.js?v=6d269130"></script>
+<script async src="love.js?v=6d269130" onload="applicationLoad()"></script>

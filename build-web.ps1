@@ -1,8 +1,8 @@
-# Rebuilds the browser version of Plotline into .\web (needs Node.js).
+# Rebuilds the browser version of NetWorm into .\web (needs Node.js).
 # Only the love.js runtime files are replaced; the page itself (web\index.html) is hand-written and kept.
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$tmp = Join-Path $env:TEMP 'plotline-web-build'
+$tmp = Join-Path $env:TEMP 'networm-web-build'
 if (Test-Path $tmp) { Remove-Item -Recurse -Force $tmp }
 New-Item -ItemType Directory $tmp | Out-Null
 
@@ -13,11 +13,11 @@ $conf = [IO.File]::ReadAllText("$root\conf.lua") -replace 'width = 1280', 'width
 Copy-Item "$root\main.lua" $tmp
 
 Copy-Item -Recurse "$root\font" "$tmp\font"
-Compress-Archive -Path "$tmp\main.lua", "$tmp\conf.lua", "$tmp\font" -DestinationPath "$tmp\plotline.zip"
-Move-Item "$tmp\plotline.zip" "$tmp\plotline.love"
+Compress-Archive -Path "$tmp\main.lua", "$tmp\conf.lua", "$tmp\font" -DestinationPath "$tmp\networm.zip"
+Move-Item "$tmp\networm.zip" "$tmp\networm.love"
 
 npm install --silent --prefix $tmp love.js@11.4.1
-node "$tmp\node_modules\love.js\index.js" -c -t Plotline -m 67108864 "$tmp\plotline.love" "$tmp\out"
+node "$tmp\node_modules\love.js\index.js" -c -t NetWorm -m 67108864 "$tmp\networm.love" "$tmp\out"
 
 New-Item -ItemType Directory -Force "$root\web" | Out-Null
 foreach ($f in 'love.js', 'love.wasm') { Copy-Item "$tmp\out\$f" "$root\web\$f" -Force }
@@ -27,7 +27,7 @@ Copy-Item "$root\music\memory.mp3" "$root\web\music.mp3" -Force
 # Ship the game package as a script (game-data.js) instead of a raw .data file, so it can be
 # hosted anywhere that serves .js; game.js is patched to take the bytes from Module.gameData.
 $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("$tmp\out\game.data"))
-[IO.File]::WriteAllText("$root\web\game-data.js", "window.PLOTLINE_DATA = '$b64';`n", $utf8)
+[IO.File]::WriteAllText("$root\web\game-data.js", "window.NETWORM_DATA = '$b64';`n", $utf8)
 $sig = 'function fetchRemotePackage(packageName, packageSize, callback, errback) {'
 $js = [IO.File]::ReadAllText("$tmp\out\game.js")
 if (-not $js.Contains($sig)) { throw 'game.js layout changed; cannot patch fetchRemotePackage' }
