@@ -49,7 +49,7 @@ local COL = {
   line = hex('dcdce2'), light = hex('c9c9cf'), mid = hex('6b6b73'), dim = hex('9a9aa3'),
   ink = hex('1e1e1e'), text = hex('1e1e1e'), dark = hex('1e1e1e'), white = {1, 1, 1, 1},
   pink = hex('ff2d95'), pinkSoft = hex('ffd6ea'), mintText = hex('139a5c'), mintSoft = hex('d7f5e6'),
-  green = hex('1fbf75'), red = hex('e8336f'), gold = hex('ff2d95'), purple = hex('9a7aa8'),
+  green = hex('1fbf75'), red = hex('e8336f'), gold = hex('ff2d95'), purple = hex('9a7aa8'), coin = hex('d4a017'),
 }
 
 -- Fonts are rasterised at window scale and drawn at 1/scale so text stays crisp.
@@ -129,18 +129,19 @@ end
 ---------------------------------------------------------------------------
 -- internal keys stay generic; display names are Embercoil's own
 local CLASSES = {
-  warrior  = {name = 'Guardian',   color = hex('1e1e1e'), tiers = {2, 4}, desc = {'Guardians take 25% less damage', 'Guardians take 50% less damage'}},
-  ranger   = {name = 'Marksman',   color = hex('1fbf75'), tiers = {2, 4}, desc = {'Marksmen attack 25% faster', 'Marksmen attack 50% faster'}},
-  mage     = {name = 'Arcanist',   color = hex('6b6b73'), tiers = {2, 4}, desc = {'Arcanists deal +30% damage', 'Arcanists deal +60% damage'}},
-  rogue    = {name = 'Cutthroat',  color = hex('3a3a40'), tiers = {2, 4}, desc = {'Cutthroats: 15% crit chance (x3)', 'Cutthroats: 30% crit chance (x3)'}},
-  healer   = {name = 'Sage',       color = hex('8fe3bb'), glyphInk = true, tiers = {1, 2}, desc = {'Healing +50%', 'Healing +100%'}},
-  nuker    = {name = 'Demolisher', color = hex('9a9aa3'), tiers = {2, 4}, desc = {'Demolisher blasts +30% size', 'Demolisher blasts +60% size'}},
-  conjurer = {name = 'Artificer',  color = hex('16865a'), tiers = {1, 2}, desc = {'Gadgets +50% dmg & duration', 'Gadgets +100% dmg & duration'}},
-  voider   = {name = 'Hexer',      color = hex('55555c'), tiers = {2, 4}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
-  enforcer = {name = 'Bruiser',    color = hex('c4c4cc'), glyphInk = true, tiers = {2, 4}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
+  warrior  = {name = 'Guardian',   color = hex('577590'), tiers = {2, 4}, desc = {'Guardians take 25% less damage', 'Guardians take 50% less damage'}},
+  ranger   = {name = 'Marksman',   color = hex('2a9d8f'), tiers = {2, 4}, desc = {'Marksmen attack 25% faster', 'Marksmen attack 50% faster'}},
+  mage     = {name = 'Arcanist',   color = hex('3a86ff'), tiers = {2, 4}, desc = {'Arcanists deal +30% damage', 'Arcanists deal +60% damage'}},
+  rogue    = {name = 'Cutthroat',  color = hex('c1121f'), tiers = {2, 4}, desc = {'Cutthroats: 15% crit chance (x3)', 'Cutthroats: 30% crit chance (x3)'}},
+  healer   = {name = 'Sage',       color = hex('80b918'), tiers = {1, 2}, desc = {'Healing +50%', 'Healing +100%'}},
+  nuker    = {name = 'Demolisher', color = hex('f77f00'), tiers = {2, 4}, desc = {'Demolisher blasts +30% size', 'Demolisher blasts +60% size'}},
+  conjurer = {name = 'Artificer',  color = hex('8d6e63'), tiers = {1, 2}, desc = {'Gadgets +50% dmg & duration', 'Gadgets +100% dmg & duration'}},
+  voider   = {name = 'Hexer',      color = hex('7b2cbf'), tiers = {2, 4}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
+  enforcer = {name = 'Bruiser',    color = hex('8d99ae'), tiers = {2, 4}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
 }
-CLASSES.rammer = {name = 'Rammer', color = hex('2f3a4a'), tiers = {2, 4}, desc = {'Rams +50% dmg, -70% hit damage', 'Rams +100% dmg, -85% hit damage'}}
-local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer', 'rammer'}
+CLASSES.rammer = {name = 'Rammer', color = hex('22223b'), tiers = {2, 4}, desc = {'Rams +50% dmg, -70% hit damage', 'Rams +100% dmg, -85% hit damage'}}
+CLASSES.merchant = {name = 'Merchant', color = hex('d4a017'), tiers = {2, 4}, desc = {'Enemies: 6% chance to drop a coin', '15% coin drops, +2 max interest'}}
+local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer', 'rammer', 'merchant'}
 
 ---------------------------------------------------------------------------
 -- combat helpers (used by unit attacks)
@@ -180,8 +181,12 @@ local function nearestUnit(x, y)
   return best, bd
 end
 
-local function killEnemy(e)
+local function killEnemy(e, src)
   e.dead = true
+  arena.kills = arena.kills + 1
+  if rand() < arena.coinChance + (src and src.coinOnKill or 0) then
+    arena.coins[#arena.coins + 1] = {x = e.x, y = e.y, life = 10, value = 1}
+  end
   local boss = e.type == 'boss'
   burst(e.x, e.y, e.d.color, boss and 80 or 12, boss and 320 or 180)
   play(boss and 'boss' or 'die')
@@ -201,7 +206,7 @@ local function damageEnemy(e, dmg, src, opt)
   e.hp = e.hp - dmg
   e.flash = 0.1
   addText(e.x + rr(-6, 6), e.y - e.r - 4, tostring(math.floor(dmg + 0.5)), crit and COL.ink or (opt and opt.color) or COL.mid, crit)
-  if e.hp <= 0 then killEnemy(e) end
+  if e.hp <= 0 then killEnemy(e, src) end
 end
 
 local function applyDot(e, total, dur, src)
@@ -399,7 +404,30 @@ local UNITS = {
   avalanche = {name = 'Avalanche', tier = 3, classes = {'rammer', 'warrior'}, hp = 260, dmg = 0, ram = 70, ramSplash = 55, cd = 1, noAttack = true,
     desc = 'Each ram sends a shockwave through nearby enemies.'},
 
+  -- merchants: earn money
+  peddler = {name = 'Peddler', tier = 1, classes = {'merchant'}, hp = 100, dmg = 7, cd = 1.2, range = 240, levelGold = {1, 2, 3},
+    desc = 'Pelts enemies with trinkets. Earns $1/$2/$3 extra each level.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 320}); return true end},
+  pickpocket = {name = 'Pickpocket', tier = 1, classes = {'merchant', 'rogue'}, hp = 95, dmg = 8, cd = 1, range = 220, coinOnKill = {0.15, 0.22, 0.3},
+    desc = 'Throws knives. Enemies it kills often drop a coin.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 420, shape = 'knife'}); return true end},
+  banker = {name = 'Banker', tier = 2, classes = {'merchant', 'enforcer'}, hp = 170, dmg = 9, cd = 1.4, range = 240, interestCap = {2, 3, 4},
+    desc = 'Tosses coins at enemies. Raises max interest by 2/3/4.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 300, r = 5, color = COL.coin}); return true end},
+  bountyhunter = {name = 'Bounty Hunter', tier = 2, classes = {'merchant', 'ranger'}, hp = 110, dmg = 16, cd = 1.6, range = 320, coinOnKill = {0.25, 0.35, 0.45},
+    desc = 'Fires piercing shots. Enemies it kills often drop a coin.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 520, pierce = 2, shape = 'arrow'}); return true end},
+  taxcollector = {name = 'Tax Collector', tier = 3, classes = {'merchant', 'warrior'}, hp = 220, dmg = 22, cd = 1.8, range = 60, aoe = true, killGold = {12, 9, 6},
+    desc = 'Swings a ledger at nearby enemies. +$1 per 12/9/6 kills each level.',
+    attack = function(u) blast(u.x, u.y, 60 * u.aream, u.dmg, u); return true end},
+
   -- tier 4
+  tycoon = {name = 'Tycoon', tier = 4, classes = {'merchant', 'mage'}, hp = 150, dmg = 20, cd = 1.6, range = 320, levelGold = {2, 3, 4},
+    desc = 'Hurls exploding gold: +2 damage per $ you hold. Earns $2-4 each level.',
+    attack = function(u, t)
+      shoot(u, angleTo(u, t), {speed = 360, r = 6, explode = 34, color = COL.coin, dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
+      return true
+    end},
   colossus = {name = 'Colossus', tier = 4, classes = {'rammer', 'enforcer'}, hp = 380, dmg = 0, ram = 120, ramSplash = 70, ramStun = 1, cd = 1, noAttack = true,
     desc = 'A living battering ram: huge ram damage, shockwave and stun.'},
   archmage = {name = 'Archmage', tier = 4, classes = {'mage', 'nuker'}, hp = 140, dmg = 40, cd = 4, range = 360,
@@ -443,9 +471,34 @@ local UNIT_TIERS = {{}, {}, {}, {}}
 for _, k in ipairs({'vagrant', 'swordsman', 'archer', 'wizard', 'scout', 'cleric', 'pikeguard', 'slinger', 'tusker', 'spikeback',
                     'outlaw', 'pyromancer', 'barbarian', 'sentry', 'witch', 'saboteur', 'frostbinder', 'soulmender', 'ironhorn',
                     'cannoneer', 'elementor', 'juggernaut', 'priest', 'plaguedoctor', 'assassin', 'volleymaster', 'clockwright', 'avalanche',
-                    'archmage', 'warlord', 'deadeye', 'voidcaller', 'dawnbringer', 'colossus'}) do
+                    'archmage', 'warlord', 'deadeye', 'voidcaller', 'dawnbringer', 'colossus',
+                    'peddler', 'pickpocket', 'banker', 'bountyhunter', 'taxcollector', 'tycoon'}) do
   UNITS[k].key = k
   table.insert(UNIT_TIERS[UNITS[k].tier], k)
+end
+
+-- each hero is its own shade of its main class colour, from darker to lighter
+local function lum(c) return 0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3] end
+do
+  local byClass = {}
+  for _, tier in ipairs(UNIT_TIERS) do
+    for _, k in ipairs(tier) do
+      local cl = UNITS[k].classes[1]
+      byClass[cl] = byClass[cl] or {}
+      table.insert(byClass[cl], UNITS[k])
+    end
+  end
+  for cl, list in pairs(byClass) do
+    local base = CLASSES[cl].color
+    for i, d in ipairs(list) do
+      local k = #list == 1 and 0 or lerp(-0.3, 0.35, (i - 1) / (#list - 1))
+      if k < 0 then
+        d.color = {base[1] * (1 + k), base[2] * (1 + k), base[3] * (1 + k), 1}
+      else
+        d.color = {lerp(base[1], 1, k), lerp(base[2], 1, k), lerp(base[3], 1, k), 1}
+      end
+    end
+  end
 end
 
 ---------------------------------------------------------------------------
@@ -618,7 +671,7 @@ local function buildUnit(m, counts)
   local function has(cl) for _, c in ipairs(d.classes) do if c == cl then return true end end return false end
   local function t(cl) return classTier(counts, cl) end
   local u = {
-    m = m, def = d, lv = lv, color = CLASSES[d.classes[1]].color,
+    m = m, def = d, lv = lv, color = d.color,
     x = 0, y = 0, a = 0, cd = rr(0.2, d.cd), flash = 0, iframe = 0,
     dmg = d.dmg * DMG_LV[lv], maxhp = d.hp * HP_LV[lv],
     defense = 0, aspd = 1, crit = d.critBonus or 0, dotm = 1, aream = 1, summonm = 1, healm = 1,
@@ -638,6 +691,7 @@ local function buildUnit(m, counts)
   u.ram = (d.ram or 6) * DMG_LV[lv] * (rammer and (1 + 0.5 * t('rammer')) or 1)
   u.contactTaken = rammer and ({0.5, 0.3, 0.15})[t('rammer') + 1] or 1
   u.ramStun, u.ramSplash = d.ramStun, d.ramSplash
+  u.coinOnKill = d.coinOnKill and d.coinOnKill[lv] or 0
   return u
 end
 
@@ -645,7 +699,7 @@ local function startLevel()
   local l = run.level
   arena = {
     units = {}, alive = {}, enemies = {}, projs = {}, eprojs = {}, areas = {}, summons = {},
-    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0,
+    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0,
     head = {x = AR.x1 + 200, y = (AR.y1 + AR.y2) / 2, a = 0},
     boss = isBoss(l), wave = 0, nextWave = 1.5, done = false, lost = false, endT = 0,
   }
@@ -654,6 +708,7 @@ local function startLevel()
   for x = arena.head.x - 200, arena.head.x, 3 do arena.trail[#arena.trail + 1] = {x = x, y = arena.head.y} end
   local counts = classCounts()
   for _, m in ipairs(run.party) do arena.units[#arena.units + 1] = buildUnit(m, counts) end
+  arena.coinChance = ({0, 0.06, 0.15})[classTier(counts, 'merchant') + 1]
   banner('LEVEL ' .. l, arena.boss and 'Boss level!' or nil)
   paused = false
   state = 'arena'
@@ -661,14 +716,26 @@ end
 
 local function finishLevel()
   if run.level >= MAX_LEVEL then state = 'win'; return end
-  local interest = math.min(3, math.floor(run.gold / 5))
+  -- merchants add flat gold, gold per kill, and a higher interest cap
+  local extra, cap = 0, 3
+  for _, m in ipairs(run.party) do
+    local d, lv = m.def, memberLevel(m)
+    if d.levelGold then extra = extra + d.levelGold[lv] end
+    if d.killGold then extra = extra + math.floor(arena.kills / d.killGold[lv]) end
+    if d.interestCap then cap = cap + d.interestCap[lv] end
+  end
+  if classTier(classCounts(), 'merchant') >= 2 then cap = cap + 2 end
+  local interest = math.min(cap, math.floor(run.gold / 5))
   local bonus = arena.boss and 4 or 0
-  local income = 4 + interest + bonus
+  local income = 4 + interest + bonus + extra
   run.gold = run.gold + income
   run.lastIncome = income
   run.level = run.level + 1
   rollOffers()
-  shopMsg(('Level cleared! +$%d  (4 base, +%d interest%s)'):format(income, interest, bonus > 0 and (', +' .. bonus .. ' boss') or ''), COL.gold)
+  local parts = {'4 base', '+' .. interest .. ' interest'}
+  if extra > 0 then parts[#parts + 1] = '+' .. extra .. ' merchants' end
+  if bonus > 0 then parts[#parts + 1] = '+' .. bonus .. ' boss' end
+  shopMsg(('Level cleared! +$%d  (%s)'):format(income, table.concat(parts, ', ')), COL.gold)
   state = 'shop'
 end
 
@@ -1041,6 +1108,29 @@ local function updateArena(dt)
   updateSummons(dt)
   updateEnemies(dt)
 
+  -- coins drift toward the head and are picked up by any segment
+  local head = arena.alive[1]
+  for i = #arena.coins, 1, -1 do
+    local c = arena.coins[i]
+    c.life = c.life - dt
+    if head and dist(c.x, c.y, head.x, head.y) < 90 then
+      local nx, ny = norm(head.x - c.x, head.y - c.y)
+      c.x, c.y = c.x + nx * 240 * dt, c.y + ny * 240 * dt
+    end
+    local got = false
+    for _, u in ipairs(arena.alive) do
+      if dist(c.x, c.y, u.x, u.y) < UR + 7 then got = true; break end
+    end
+    if got then
+      run.gold = run.gold + c.value
+      addText(c.x, c.y - 10, '+$' .. c.value, COL.coin, true)
+      play('buy', 1.6)
+      table.remove(arena.coins, i)
+    elseif c.life <= 0 then
+      table.remove(arena.coins, i)
+    end
+  end
+
   for i = #arena.spawns, 1, -1 do
     local s = arena.spawns[i]
     s.t = s.t - dt
@@ -1095,6 +1185,8 @@ local function updateArena(dt)
     end
   elseif #arena.spawns == 0 and #arena.enemies == 0 then
     arena.done, arena.endT = true, 2
+    for _, c in ipairs(arena.coins) do run.gold = run.gold + c.value end
+    arena.coins = {}
     banner(run.level >= MAX_LEVEL and 'VICTORY!' or 'LEVEL COMPLETE', nil, COL.gold)
     play('buy')
   end
@@ -1168,6 +1260,9 @@ local function glyph(cl, x, y, s)
     lg.circle('line', x, y, s * 0.8)
   elseif cl == 'voider' then
     lg.arc('fill', x, y, s, math.pi / 2, math.pi * 1.5)
+  elseif cl == 'merchant' then
+    lg.rectangle('fill', x - s, y - s * 0.85, s * 2, s * 0.65, 1, 1)
+    lg.rectangle('fill', x - s, y + s * 0.2, s * 2, s * 0.65, 1, 1)
   elseif cl == 'rammer' then
     lg.setLineWidth(math.max(1.5, s * 0.5))
     lg.line(x - s * 0.7, y - s * 0.9, x + s * 0.5, y, x - s * 0.7, y + s * 0.9)
@@ -1177,8 +1272,10 @@ local function glyph(cl, x, y, s)
 end
 
 -- snake segment: rounded block in class colour with its class symbol
-local function marker(x, y, r, cl, fill, lv, a, noGlyph)
-  local c = CLASSES[cl]
+local function marker(x, y, r, what, fill, lv, a, noGlyph)
+  -- `what` is a unit definition (its own shade) or a class key (the class colour)
+  local cl, color
+  if type(what) == 'table' then cl, color = what.classes[1], what.color else cl, color = what, CLASSES[what].color end
   local w, h = r * 2.2, r * 1.7
   lg.push()
   lg.translate(x, y)
@@ -1188,11 +1285,11 @@ local function marker(x, y, r, cl, fill, lv, a, noGlyph)
     setc(lv == 3 and COL.green or COL.ink, 0.85)
     lg.rectangle('line', -w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 4, 4)
   end
-  setc(fill or c.color)
+  setc(fill or color)
   lg.rectangle('fill', -w / 2, -h / 2, w, h, 3, 3)
   lg.pop()
   if not noGlyph then
-    setc(c.glyphInk and COL.ink or COL.card)
+    setc(lum(color) > 0.6 and COL.ink or COL.card)
     glyph(cl, x, y, r * 0.38)
   end
 end
@@ -1255,10 +1352,10 @@ local function drawSnake()
   for i = #arena.alive, 1, -1 do
     local u = arena.alive[i]
     local head = i == 1
-    marker(u.x, u.y, 8.5, u.def.classes[1], u.flash > 0 and COL.red or nil, u.lv, u.a, head)
+    marker(u.x, u.y, 8.5, u.def, u.flash > 0 and COL.red or nil, u.lv, u.a, head)
     if head then
       local ca, sa = math.cos(u.a), math.sin(u.a)
-      setc(CLASSES[u.def.classes[1]].glyphInk and COL.ink or COL.card)
+      setc(lum(u.color) > 0.6 and COL.ink or COL.card)
       lg.circle('fill', u.x + ca * 4 - sa * 3.5, u.y + sa * 4 + ca * 3.5, 1.9)
       lg.circle('fill', u.x + ca * 4 + sa * 3.5, u.y + sa * 4 - ca * 3.5, 1.9)
     end
@@ -1316,6 +1413,16 @@ local function drawArena()
       setc(a.src and a.src.color or COL.ink, alpha * 0.8)
       lg.setLineWidth(2)
       lg.circle('line', a.x, a.y, rad)
+    end
+  end
+
+  for _, c in ipairs(arena.coins) do
+    if c.life > 2 or math.floor(c.life * 8) % 2 == 0 then
+      setc(COL.coin)
+      lg.circle('fill', c.x, c.y, 6)
+      setc(COL.card, 0.8)
+      lg.setLineWidth(1.5)
+      lg.circle('line', c.x, c.y, 3.5)
     end
   end
 
@@ -1476,21 +1583,21 @@ local function drawCatalogue(mx, my)
     text(('$%d each  ·  %d%% chance'):format(COST[tier], math.floor(odds[tier] * 100 + 0.5)), cx + pillW(label) + 8, cy + 2, 's')
     for i, key in ipairs(UNIT_TIERS[tier]) do
       local def = UNITS[key]
-      local r = {x = cx, y = cy + 24 + (i - 1) * 31, w = colW, h = 29}
+      local r = {x = cx, y = cy + 24 + (i - 1) * 26, w = colW, h = 25}
       if inRect(mx, my, r) then
         hovered = def
         setc(COL.hover)
         lg.rectangle('fill', r.x - 4, r.y, r.w + 8, r.h, 6, 6)
       end
-      marker(r.x + 11, r.y + 15, 7.5, def.classes[1])
+      marker(r.x + 11, r.y + 13, 7.5, def)
       setc(avail and COL.ink or COL.dim)
-      text(def.name, r.x + 28, r.y + 1, 'm')
+      text(def.name, r.x + 28, r.y - 1, 'm')
       setc(COL.dim)
-      text(classLine(def.classes), r.x + 28, r.y + 17, 's')
+      text(classLine(def.classes), r.x + 28, r.y + 13, 's')
       local m = findMember(key)
       if m then
         local s = 'Lv' .. memberLevel(m)
-        pill(s, r.x + r.w - pillW(s), r.y + 6, COL.mintText, COL.mintSoft)
+        pill(s, r.x + r.w - pillW(s), r.y + 4, COL.mintText, COL.mintSoft)
       end
     end
   end
@@ -1570,7 +1677,7 @@ local function drawShop()
       lg.setLineWidth(1)
       lg.line(r.x + 4, r.y + r.h + 3, r.x + r.w - 4, r.y + r.h + 3)
     end
-    marker(r.x + 18, r.y + 20, 9, m.def.classes[1], nil, lv)
+    marker(r.x + 18, r.y + 20, 9, m.def, nil, lv)
     setc(COL.ink)
     text(m.def.name, r.x + 38, r.y + 3, 'm')
     setc(COL.dim)
@@ -1604,7 +1711,7 @@ local function drawShop()
       pill('Tier ' .. def.tier, r.x + 8, r.y + 8, TIER_COL[def.tier][1], TIER_COL[def.tier][2])
       local cs = '$' .. cost
       pill(cs, r.x + r.w - 10 - pillW(cs), r.y + 8, can and COL.card or COL.dim, can and COL.pink or COL.grid)
-      marker(r.x + r.w / 2, r.y + 46, 12, def.classes[1])
+      marker(r.x + r.w / 2, r.y + 46, 12, def)
       setc(COL.ink)
       text(def.name, r.x, r.y + 66, 'm', 'center', r.w)
       setc(COL.mid)
@@ -1633,11 +1740,11 @@ local function drawShop()
   -- class bonuses as a horizontal bar chart
   card(360, 340, 576, 184, 12)
   setc(COL.ink)
-  text('Class bonuses', 376, 348, 'm')
+  text('Class bonuses', 376, 345, 'm')
   local counts = classCounts()
   for i, cl in ipairs(CLASS_ORDER) do
     local c = CLASSES[cl]
-    local y = 372 + (i - 1) * 15.2
+    local y = 368 + (i - 1) * 14
     local n, tier = counts[cl] or 0, classTier(counts, cl)
     setc(c.color, n > 0 and 1 or 0.35)
     glyph(cl, 380, y + 7, 3.5)
@@ -1709,7 +1816,7 @@ local function drawMenu()
   setc(COL.mid)
   text('A snake auto-battler: you steer, your heroes do the fighting.', 212, 160, 'm')
   setc(COL.dim)
-  text('25 levels  ·  34 units  ·  10 classes  ·  5 shop levels', 212, 182, 's')
+  text('25 levels  ·  40 units  ·  11 classes  ·  5 shop levels', 212, 182, 's')
   button(MENU_BTN, 'Start run', true, inRect(mx, my, MENU_BTN), true)
   setc(COL.dim)
   text('or press Space', 426, 226, 's')
@@ -1729,7 +1836,7 @@ local function drawEnd(title, c, sub)
   setc(COL.ink)
   ctext(sub, W / 2, 236, 'm')
   local x = W / 2 - (#run.party - 1) * 15
-  for i, m in ipairs(run.party) do marker(x + (i - 1) * 30, 290, 9, m.def.classes[1], nil, memberLevel(m)) end
+  for i, m in ipairs(run.party) do marker(x + (i - 1) * 30, 290, 9, m.def, nil, memberLevel(m)) end
   setc(COL.dim)
   ctext('Click or press Space to return to the menu', W / 2, 350, 's')
 end
