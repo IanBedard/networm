@@ -198,6 +198,7 @@ local function killEnemy(e, src)
     arena.coins[#arena.coins + 1] = {x = e.x, y = e.y, life = 10, value = 1}
   end
   local boss = e.type == 'boss'
+  if boss then arena.hitstop = 0.18 end
   burst(e.x, e.y, e.d.color, boss and 80 or 12, boss and 320 or 180)
   play(boss and 'boss' or 'die')
   shake(boss and 14 or 2)
@@ -727,7 +728,7 @@ local function startLevel()
   local l = run.level
   arena = {
     units = {}, alive = {}, enemies = {}, projs = {}, eprojs = {}, areas = {}, summons = {},
-    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0, kx = 0, ky = 0,
+    parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0, kx = 0, ky = 0, hurtFlash = 0, hitstop = 0,
     head = {x = AR.x1 + 200, y = (AR.y1 + AR.y2) / 2, a = 0},
     boss = isBoss(l), wave = 0, nextWave = 1.5, done = false, lost = false, endT = 0, t = 0,
   }
@@ -777,12 +778,16 @@ local function hurtUnit(u, dmg, force)
   u.flash, u.iframe = 0.15, 0.3
   addText(u.x, u.y - 14, tostring(math.floor(dmg + 0.5)), COL.red)
   play('hurt')
-  shake(3)
+  -- feedback scales with how much of the module's health the hit took
+  local frac = math.min(1, dmg / u.maxhp)
+  shake(1 + 7 * frac)
+  arena.hurtFlash = math.min(1, arena.hurtFlash + 0.2 + frac)
   if u.hp <= 0 then
     u.hp, u.dead = 0, true
     burst(u.x, u.y, u.color, 24, 240)
     play('die')
     shake(8)
+    arena.hurtFlash, arena.hitstop = 1, 0.1
     addText(u.x, u.y - 24, u.def.name .. ' [terminated]', COL.red, true)
   end
 end
@@ -1214,6 +1219,12 @@ local function updateEnemies(dt)
 end
 
 local function updateArena(dt)
+  arena.hurtFlash = math.max(0, arena.hurtFlash - dt * 2.5)
+  -- hit-stop: freeze the simulation for a beat when something important dies
+  if arena.hitstop > 0 then
+    arena.hitstop = arena.hitstop - dt
+    return
+  end
   arena.t = arena.t + dt
   arena.alive = {}
   for _, u in ipairs(arena.units) do if not u.dead then arena.alive[#arena.alive + 1] = u end end
@@ -1778,6 +1789,18 @@ local function drawArena()
     lg.rectangle('fill', W / 2 - bw / 2 + 72, AR.y1 + 9, bw - 72, 7)
     setc(COL.red)
     lg.rectangle('fill', W / 2 - bw / 2 + 72, AR.y1 + 9, (bw - 72) * math.max(0, boss.hp / boss.maxhp), 7)
+  end
+
+  -- damage pulse: the screen edges flush red, stronger the harder the worm was hit
+  if arena.hurtFlash > 0 then
+    for i = 0, 9 do
+      setc(COL.red, arena.hurtFlash * 0.3 * (1 - i / 10))
+      local d = i * 5
+      lg.rectangle('fill', d, d, W - d * 2, 5)
+      lg.rectangle('fill', d, H - d - 5, W - d * 2, 5)
+      lg.rectangle('fill', d, d + 5, 5, H - d * 2 - 10)
+      lg.rectangle('fill', W - d - 5, d + 5, 5, H - d * 2 - 10)
+    end
   end
 
   if arena.banner then

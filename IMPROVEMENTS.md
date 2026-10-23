@@ -66,3 +66,16 @@ arena's top edge so the two never overlap.
 **Checked.** Screenshot of a level-12 boss fight with modules forced to 100/75/dead/20/90/60%: every
 entry and the boss bar render where expected. Behaviour tests and the random-play 25-level harness pass.
 (While capturing it, cycle 1's pause-on-focus-loss correctly paused the unfocused test window.)
+
+## Cycle 5: hits you can feel, deaths you notice
+
+**Problem.** Every hit on the worm added the same screen shake, so under steady fire the screen shook
+constantly and the shake stopped carrying information; a module dying looked almost the same as a scratch.
+
+**Change.** Shake now scales with the share of the module's health the hit took. The screen edges pulse
+red in proportion to recent damage. A module's death or the antivirus going down triggers a short
+hit-stop (0.1 s / 0.18 s) so the moment registers.
+
+**Checked.** Test: a 60% hit flashes harder than a 5% hit; a lethal hit starts a hit-stop that freezes
+the simulation and then resumes. Screenshot of a level-9 fight at the moment the head is hit shows the
+red edge pulse and the head's entry flashing in the module table. QA bot runs complete without errors.
