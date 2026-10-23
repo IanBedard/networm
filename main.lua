@@ -18,6 +18,7 @@ local HP_SCALE = 0.5      -- heroes are fragile: every unit's listed HP is halve
 local HEAL_LV = {1, 1.4, 1.9}
 local COST = {1, 2, 4, 6}
 local REROLL_COST = 1
+local HUNT_AFTER = 25     -- seconds after the last wave before kiting enemies charge in
 
 local scale, ox, oy = 1, 0, 0
 local fonts = {}
@@ -38,6 +39,12 @@ local function dist(x1, y1, x2, y2) local dx, dy = x2 - x1, y2 - y1; return math
 local function norm(x, y) local l = math.sqrt(x * x + y * y); if l < 1e-6 then return 0, 0 end; return x / l, y / l end
 local function choice(t) return t[rand(#t)] end
 local function angleTo(a, b) return math.atan2(b.y - a.y, b.x - a.x) end
+-- aim where a moving target will be when a projectile of this speed reaches it
+local function aim(from, t, speed)
+  local vx, vy = (t.vx or 0) + (t.kx or 0), (t.vy or 0) + (t.ky or 0)
+  local tt = dist(from.x, from.y, t.x, t.y) / speed
+  return math.atan2(t.y + vy * tt - from.y, t.x + vx * tt - from.x)
+end
 local function inRect(px, py, r) return px >= r.x and px <= r.x + r.w and py >= r.y and py <= r.y + r.h end
 local function hex(s, a)
   return {tonumber(s:sub(1, 2), 16) / 255, tonumber(s:sub(3, 4), 16) / 255, tonumber(s:sub(5, 6), 16) / 255, a or 1}
@@ -269,19 +276,19 @@ local UNITS = {
   -- tier 1
   vagrant = {name = 'Drifter', tier = 1, classes = {'warrior', 'ranger'}, hp = 110, dmg = 10, cd = 1.0, range = 260,
     desc = 'Shoots a projectile at the nearest enemy.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 340}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 340), {speed = 340}); return true end},
   swordsman = {name = 'Bladewarden', tier = 1, classes = {'warrior'}, hp = 150, dmg = 16, cd = 1.6, range = 55, aoe = true,
     desc = 'Slashes all nearby enemies.',
     attack = function(u) blast(u.x, u.y, 55 * u.aream, u.dmg, u); return true end},
   archer = {name = 'Longshot', tier = 1, classes = {'ranger'}, hp = 90, dmg = 12, cd = 1.3, range = 320,
     desc = 'Fires an arrow that pierces through 3 enemies.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 480, pierce = 3, shape = 'arrow'}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 480), {speed = 480, pierce = 3, shape = 'arrow'}); return true end},
   wizard = {name = 'Emberwright', tier = 1, classes = {'mage'}, hp = 90, dmg = 10, cd = 1.4, range = 280,
     desc = 'Casts a bolt that explodes on impact.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 300, explode = 32, r = 5}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 300), {speed = 300, explode = 32, r = 5}); return true end},
   scout = {name = 'Ricochet', tier = 1, classes = {'rogue'}, hp = 95, dmg = 9, cd = 1.1, range = 260,
     desc = 'Throws a knife that chains between 3 enemies.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 420, chain = 3, shape = 'knife'}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 420), {speed = 420, chain = 3, shape = 'knife'}); return true end},
   cleric = {name = 'Mender', tier = 1, classes = {'healer'}, hp = 100, dmg = 0, cd = 4.5, noTarget = true, silent = true,
     desc = 'Heals the most injured ally for 25% of its max HP.',
     attack = function(u)
@@ -300,7 +307,7 @@ local UNITS = {
   outlaw = {name = 'Fanblade', tier = 2, classes = {'warrior', 'rogue'}, hp = 130, dmg = 8, cd = 1.8, range = 230,
     desc = 'Throws a fan of 5 knives.',
     attack = function(u, t)
-      local a = angleTo(u, t)
+      local a = aim(u, t, 380)
       for i = -2, 2 do shoot(u, a + i * 0.2, {speed = 380, shape = 'knife'}) end
       return true
     end},
@@ -315,7 +322,7 @@ local UNITS = {
     attack = function(u) summon('turret', u.x, u.y, u, {life = 6}); return true end},
   witch = {name = 'Hexweaver', tier = 2, classes = {'voider', 'mage'}, hp = 100, dmg = 6, cd = 1.5, range = 280,
     desc = 'Hexes an enemy, dealing heavy damage over time.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 300, dot = u.dmg * 5, r = 5, color = COL.purple}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 300), {speed = 300, dot = u.dmg * 5, r = 5, color = COL.purple}); return true end},
   saboteur = {name = 'Fusewick', tier = 2, classes = {'rogue', 'conjurer'}, hp = 100, dmg = 22, cd = 4, range = 320,
     desc = 'Lights 2 fuse-imps that run at enemies and explode.',
     attack = function(u) for i = 1, 2 do summon('bomber', u.x, u.y, u, {life = 5}) end; return true end},
@@ -323,7 +330,7 @@ local UNITS = {
   -- tier 3
   cannoneer = {name = 'Bombardier', tier = 3, classes = {'ranger', 'nuker'}, hp = 130, dmg = 34, cd = 2.8, range = 340,
     desc = 'Fires a cannonball that explodes in a large area.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 280, explode = 62, r = 7}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 280), {speed = 280, explode = 62, r = 7}); return true end},
   elementor = {name = 'Stormcaller', tier = 3, classes = {'mage', 'nuker'}, hp = 120, dmg = 36, cd = 3.2, range = 340,
     desc = 'Calls lightning on an enemy, blasting a large area.',
     attack = function(u, t) blast(t.x, t.y, 58 * u.aream, u.dmg, u, {delay = 0.35, stun = 0.3}); return true end},
@@ -348,7 +355,7 @@ local UNITS = {
     end},
   assassin = {name = 'Nightblade', tier = 3, classes = {'rogue', 'voider'}, hp = 120, dmg = 30, cd = 2.4, range = 320, critBonus = 0.2,
     desc = 'Throws a piercing poisoned blade. +20% crit chance.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 560, pierce = 99, dot = u.dmg * 1.5, shape = 'knife', r = 5}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 560), {speed = 560, pierce = 99, dot = u.dmg * 1.5, shape = 'knife', r = 5}); return true end},
 
   -- more tier 1-3
   pikeguard = {name = 'Pikeguard', tier = 1, classes = {'warrior', 'enforcer'}, hp = 160, dmg = 14, cd = 1.5, range = 60,
@@ -361,14 +368,14 @@ local UNITS = {
   slinger = {name = 'Slinger', tier = 1, classes = {'ranger', 'rogue'}, hp = 85, dmg = 6, cd = 0.9, range = 260,
     desc = 'Hurls two quick stones at the nearest enemy.',
     attack = function(u, t)
-      local a = angleTo(u, t)
+      local a = aim(u, t, 380)
       shoot(u, a - 0.08, {speed = 380})
       shoot(u, a + 0.08, {speed = 380})
       return true
     end},
   frostbinder = {name = 'Frostbinder', tier = 2, classes = {'mage', 'enforcer'}, hp = 120, dmg = 12, cd = 2.6, range = 280,
     desc = 'Fires a frost orb that bursts and freezes for 1s.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 280, explode = 40, stun = 1, r = 6}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 280), {speed = 280, explode = 40, stun = 1, r = 6}); return true end},
   soulmender = {name = 'Soulmender', tier = 2, classes = {'healer', 'voider'}, hp = 110, dmg = 6, cd = 4, noTarget = true, silent = true,
     desc = 'Heals the weakest ally 15% and curses an enemy.',
     attack = function(u)
@@ -411,16 +418,16 @@ local UNITS = {
   -- merchants: earn money
   peddler = {name = 'Peddler', tier = 1, classes = {'merchant'}, hp = 100, dmg = 7, cd = 1.2, range = 240, levelGold = {1, 2, 3},
     desc = 'Pelts enemies. Earns $1/$2/$3 extra each level.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 320}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 320), {speed = 320}); return true end},
   pickpocket = {name = 'Pickpocket', tier = 1, classes = {'merchant', 'rogue'}, hp = 95, dmg = 8, cd = 1, range = 220, coinOnKill = {0.15, 0.22, 0.3},
     desc = 'Throws knives. Enemies it kills often drop a coin.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 420, shape = 'knife'}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 420), {speed = 420, shape = 'knife'}); return true end},
   banker = {name = 'Banker', tier = 2, classes = {'merchant', 'enforcer'}, hp = 170, dmg = 9, cd = 1.4, range = 240, interestCap = {2, 3, 4},
     desc = 'Tosses coins at enemies. Raises max interest by 2/3/4.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 300, r = 5, color = COL.coin}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 300), {speed = 300, r = 5, color = COL.coin}); return true end},
   bountyhunter = {name = 'Bounty Hunter', tier = 2, classes = {'merchant', 'ranger'}, hp = 110, dmg = 16, cd = 1.6, range = 320, coinOnKill = {0.25, 0.35, 0.45},
     desc = 'Fires piercing shots. Enemies it kills often drop a coin.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 520, pierce = 2, shape = 'arrow'}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 520), {speed = 520, pierce = 2, shape = 'arrow'}); return true end},
   taxcollector = {name = 'Tax Collector', tier = 3, classes = {'merchant', 'warrior'}, hp = 220, dmg = 22, cd = 1.8, range = 60, aoe = true, killGold = {12, 9, 6},
     desc = 'Swings at nearby enemies. +$1 per 12/9/6 kills.',
     attack = function(u) blast(u.x, u.y, 60 * u.aream, u.dmg, u); return true end},
@@ -429,7 +436,7 @@ local UNITS = {
   tycoon = {name = 'Tycoon', tier = 4, classes = {'merchant', 'mage'}, hp = 150, dmg = 20, cd = 1.6, range = 320, levelGold = {2, 3, 4},
     desc = 'Exploding gold: +2 dmg per $ held. +$2-4 a level.',
     attack = function(u, t)
-      shoot(u, angleTo(u, t), {speed = 360, r = 6, explode = 34, color = COL.coin, dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
+      shoot(u, aim(u, t, 360), {speed = 360, r = 6, explode = 34, color = COL.coin, dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
       return true
     end},
   colossus = {name = 'Colossus', tier = 4, classes = {'rammer', 'enforcer'}, hp = 380, dmg = 0, ram = 120, ramSplash = 70, ramStun = 1, cd = 1, noAttack = true,
@@ -453,7 +460,7 @@ local UNITS = {
     attack = function(u) blast(u.x, u.y, 120 * u.aream, u.dmg, u, {stun = 1.5, knock = 400}); shake(7); return true end},
   deadeye = {name = 'Deadeye', tier = 4, classes = {'ranger', 'rogue'}, hp = 130, dmg = 90, cd = 3, range = 450, critBonus = 0.3,
     desc = 'Snipes through every enemy in a line. +30% crit chance.',
-    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 900, pierce = 99, shape = 'arrow', life = 1}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 900), {speed = 900, pierce = 99, shape = 'arrow', life = 1}); return true end},
   voidcaller = {name = 'Voidcaller', tier = 4, classes = {'voider', 'conjurer'}, hp = 140, dmg = 10, cd = 6, range = 320,
     desc = 'Opens a rift that drags enemies in and drains them for 3s.',
     attack = function(u, t)
@@ -974,7 +981,7 @@ local function updateSummons(dt)
       if s.cd <= 0 then
         local t = nearestEnemy(s.x, s.y, 240)
         if t then
-          s.a = angleTo(s, t)
+          s.a = aim(s, t, 380)
           shootFrom(s.x, s.y, s.a, {src = s.src, dmg = s.dmg, speed = 380, explode = s.explode})
           play('shoot', 1.4)
           s.cd = 0.5
@@ -1089,7 +1096,10 @@ local function updateEnemies(dt)
       elseif t then
         local nx, ny = norm(t.x - e.x, t.y - e.y)
         local tp = e.type
-        if tp == 'shooter' then
+        if arena.hunt and (tp == 'shooter' or tp == 'sniper' or tp == 'repulsor') then
+          -- stragglers stop kiting once the level has dragged on, so it always ends
+          dx, dy = nx * e.speed * 1.4, ny * e.speed * 1.4
+        elseif tp == 'shooter' then
           if td > 200 then dx, dy = nx * e.speed, ny * e.speed
           elseif td < 130 then dx, dy = -nx * e.speed, -ny * e.speed
           else dx, dy = -ny * e.speed * 0.6, nx * e.speed * 0.6 end
@@ -1289,6 +1299,13 @@ local function updateArena(dt)
         arena.nextWave = math.min(arena.nextWave, 0.8)
       end
       if arena.nextWave <= 0 then startWave(); arena.nextWave = 15 end
+    end
+  elseif #arena.spawns > 0 or #arena.enemies > 0 then
+    -- last wave is out: after a while, the remaining kiters come straight for the worm
+    arena.lastWaveT = (arena.lastWaveT or 0) + dt
+    if not arena.hunt and arena.lastWaveT > HUNT_AFTER then
+      arena.hunt = true
+      banner('TRACE COMPLETE', 'remaining processes located - they are coming for you', COL.gold)
     end
   elseif #arena.spawns == 0 and #arena.enemies == 0 then
     arena.done, arena.endT = true, 2

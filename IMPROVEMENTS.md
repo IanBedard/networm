@@ -34,3 +34,21 @@ Repulsor pulses do half damage; their shove stays, since that is their real thre
 **Checked.** Test: a forced ring fires nothing during the warning, then exactly 11 of 16 bullets.
 QA bot: average level 6.8 -> 7.8 (seed 1, 4 runs) and 8.7 over 6 runs on seed 2; the level-6 wall is
 gone (most runs now pass it) even though the bot does not aim for the gap.
+
+## Cycle 3: shots that land, levels that end
+
+**Problem.** On one QA seed, 3 of 4 runs stalled on levels 4-6: a lone shooter with 12 HP outlived 240
+seconds against two ranged modules. Logging showed every projectile passing 25-35 px from it. All
+projectiles were aimed at where an enemy *was*; a shooter strafing at ~47 px/s moves ~20 px while a shot
+is in flight, more than the hit radius, so kiting enemies dodged indefinitely. For the player this reads
+as "my modules keep missing" and a level that never ends.
+
+**Change.** Projectile attacks (14 single-shot modules, the Fanblade fan, Slinger stones and turrets)
+now lead their target using its velocity and the projectile's speed. As a safety net, 25 s after the
+last wave of a level is out, the remaining shooters, snipers and repulsors stop kiting and charge the
+worm ("TRACE COMPLETE" banner), so a level always resolves.
+
+**Checked.** Tests: the aim helper returns the lead angle; a lone strafing shooter is shot down within
+20 s; a sniper with infinite HP switches to hunting and closes in. All three fail on the previous
+commit and pass now. QA bot on the stalling seed: average level 5.3 -> 9.3 (best run reached level 16).
+The remaining bot timeouts come from the bot's own steering (it avoids walls and blobs), not the game.
