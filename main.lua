@@ -2046,7 +2046,7 @@ local function drawMenu()
   setc(COL.mid)
   ctext('steer the worm: [A]/[D] or [Left]/[Right]   ·   modules attack on their own', W / 2, 494, 's')
   setc(COL.dim)
-  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause', W / 2, 512, 's')
+  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause  [M] music', W / 2, 512, 's')
 end
 
 local function drawEnd(title, c, sub)
@@ -2066,12 +2066,26 @@ end
 ---------------------------------------------------------------------------
 -- LOVE callbacks
 ---------------------------------------------------------------------------
+-- background music (desktop build). The web build leaves the track out of the
+-- game package and plays it from the page instead, so this simply finds no file there.
+local MUSIC_FILE = 'music/madness.mp3'
+local music, musicOn = nil, true
+
 function love.load()
   lg.setLineStyle('smooth')
   lg.setLineJoin('bevel')
   resize(lg.getDimensions())
   local ok = pcall(initSounds)
   if not ok then sfx = {} end
+  if love.filesystem.getInfo(MUSIC_FILE) then
+    local loaded, src = pcall(love.audio.newSource, MUSIC_FILE, 'stream')
+    if loaded then
+      music = src
+      music:setLooping(true)
+      music:setVolume(0.35)
+      music:play()
+    end
+  end
 end
 
 function love.resize(w, h) resize(w, h) end
@@ -2126,6 +2140,13 @@ local function tryStart()
 end
 
 function love.keypressed(key)
+  if key == 'm' then
+    musicOn = not musicOn
+    if music then
+      if musicOn then music:play() else music:pause() end
+    end
+    return
+  end
   if state == 'menu' then
     if key == 'space' or key == 'return' then newRun()
     elseif key == 'escape' then love.event.quit() end
