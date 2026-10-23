@@ -282,12 +282,27 @@ local function applyDot(e, total, dur, src)
   e.dots[#e.dots + 1] = {dps = total / dur * (src and src.dotm or 1), t = dur, tick = 0.3}
 end
 
+-- how a projectile looks, from its module's main class
+local CLASS_SHOT = {
+  ranger = 'arrow', rogue = 'knife', mage = 'orb', voider = 'hex', nuker = 'bomb', warrior = 'slug',
+  enforcer = 'slug', merchant = 'coin', conjurer = 'bolt', healer = 'orb', rammer = 'slug',
+}
+local function shotStyle(o)
+  if o.style then return o.style end
+  if o.explode then return 'bomb' end
+  if o.dot then return 'hex' end
+  if o.shape then return o.shape end
+  local def = o.src and o.src.def
+  return def and CLASS_SHOT[def.classes[1]] or 'orb'
+end
+
 local function shootFrom(x, y, angle, o)
   local spd = o.speed or 320
   arena.projs[#arena.projs + 1] = {
     x = x, y = y, vx = math.cos(angle) * spd, vy = math.sin(angle) * spd, r = o.r or 4,
     dmg = o.dmg or o.src.dmg, src = o.src, color = o.color or o.src.color, pierce = o.pierce or 0,
     chain = o.chain or 0, explode = o.explode, dot = o.dot, stun = o.stun, life = o.life or 1.6, hit = {}, shape = o.shape,
+    style = shotStyle(o), trail = {}, born = time,
   }
 end
 local function shoot(u, angle, o)
@@ -452,7 +467,7 @@ local UNITS = {
     end},
   frostbinder = {name = 'Frostbinder', tier = 2, classes = {'mage', 'enforcer'}, hp = 120, dmg = 12, cd = 2.6, range = 280,
     desc = 'Fires a frost orb that bursts and freezes for 1s.',
-    attack = function(u, t) shoot(u, aim(u, t, 280), {speed = 280, explode = 40, stun = 1, r = 6}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 280), {speed = 280, explode = 40, stun = 1, r = 6, style = 'frost'}); return true end},
   soulmender = {name = 'Soulmender', tier = 2, classes = {'healer', 'voider'}, hp = 110, dmg = 6, cd = 4, noTarget = true, silent = true,
     desc = 'Heals the weakest ally 15% and curses an enemy.',
     attack = function(u)
@@ -501,7 +516,7 @@ local UNITS = {
     attack = function(u, t) shoot(u, aim(u, t, 420), {speed = 420, shape = 'knife'}); return true end},
   banker = {name = 'Banker', tier = 2, classes = {'merchant', 'enforcer'}, hp = 170, dmg = 9, cd = 1.4, range = 240, interestCap = {2, 3, 4},
     desc = 'Tosses coins at enemies. Raises max interest by 2/3/4.',
-    attack = function(u, t) shoot(u, aim(u, t, 300), {speed = 300, r = 5, color = COL.coin}); return true end},
+    attack = function(u, t) shoot(u, aim(u, t, 300), {speed = 300, r = 5, color = COL.coin, style = 'coin'}); return true end},
   bountyhunter = {name = 'Bounty Hunter', tier = 2, classes = {'merchant', 'ranger'}, hp = 110, dmg = 16, cd = 1.6, range = 320, coinOnKill = {0.25, 0.35, 0.45},
     desc = 'Fires piercing shots. Enemies it kills often drop a coin.',
     attack = function(u, t) shoot(u, aim(u, t, 520), {speed = 520, pierce = 2, shape = 'arrow'}); return true end},
@@ -513,7 +528,7 @@ local UNITS = {
   tycoon = {name = 'Tycoon', tier = 4, classes = {'merchant', 'mage'}, hp = 150, dmg = 20, cd = 1.6, range = 320, levelGold = {2, 3, 4},
     desc = 'Exploding gold: +2 dmg per $ held. +$2-4 a level.',
     attack = function(u, t)
-      shoot(u, aim(u, t, 360), {speed = 360, r = 6, explode = 34, color = COL.coin, dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
+      shoot(u, aim(u, t, 360), {speed = 360, r = 6, explode = 34, color = COL.coin, style = 'coin', dmg = u.dmg + run.gold * 2 * DMG_LV[u.lv]})
       return true
     end},
   colossus = {name = 'Colossus', tier = 4, classes = {'rammer', 'enforcer'}, hp = 380, dmg = 0, ram = 120, ramSplash = 70, ramStun = 1, cd = 1, noAttack = true,
@@ -1028,6 +1043,9 @@ end
 local function updateProjectiles(dt)
   for i = #arena.projs, 1, -1 do
     local p = arena.projs[i]
+    local tr = p.trail
+    tr[#tr + 1] = p.x; tr[#tr + 1] = p.y
+    if #tr > 12 then table.remove(tr, 1); table.remove(tr, 1) end
     p.x, p.y = p.x + p.vx * dt, p.y + p.vy * dt
     p.life = p.life - dt
     local remove = p.life <= 0 or p.x < AR.x1 or p.x > AR.x2 or p.y < AR.y1 or p.y > AR.y2
@@ -1043,7 +1061,7 @@ local function updateProjectiles(dt)
             play('hit')
           end
           if p.dot then applyDot(e, p.dot, 3, p.src) end
-          burst(p.x, p.y, p.color, 3, 100, 2)
+          burst(p.x, p.y, p.color, 5, 120, 2)
           if p.chain > 0 then
             p.chain = p.chain - 1
             local n = nearestEnemy(p.x, p.y, 180, p.hit)
@@ -1136,7 +1154,7 @@ local function updateSummons(dt)
         local t = nearestEnemy(s.x, s.y, 240)
         if t then
           s.a = aim(s, t, 380)
-          shootFrom(s.x, s.y, s.a, {src = s.src, dmg = s.dmg, speed = 380, explode = s.explode})
+          shootFrom(s.x, s.y, s.a, {src = s.src, dmg = s.dmg, speed = 380, explode = s.explode, style = s.explode and 'bomb' or 'bolt'})
           play('shoot', 1.4)
           s.cd = 0.5
         else
@@ -1388,7 +1406,7 @@ local function updatePerks(dt)
       arena.stormT = 5
       local n, off = 10 + 2 * classN('rogue'), rr(0, 6.28)
       for k = 1, n do
-        shootFrom(head.x, head.y, off + k / n * math.pi * 2, {src = head, dmg = perkDmg(10), speed = 360, color = PERK_COL[2]})
+        shootFrom(head.x, head.y, off + k / n * math.pi * 2, {src = head, dmg = perkDmg(10), speed = 360, color = PERK_COL[2], style = 'packet'})
       end
       play('shoot', 0.7)
     end
@@ -1797,6 +1815,108 @@ local function drawBriefing()
   end
 end
 
+-- player projectiles: a fading trail in the module's colour, then a shape for the kind of shot
+local function drawShot(p)
+  local c, tr = p.color, p.trail
+  local a = math.atan2(p.vy, p.vx)
+  local age = time - p.born
+  local n = #tr / 2
+  local trailW = (p.style == 'bomb' or p.style == 'orb' or p.style == 'hex' or p.style == 'frost') and p.r * 1.2 or 1.5
+  for k = 1, n - 1 do
+    setc(c, 0.35 * k / n)
+    lg.setLineWidth(math.max(1, trailW * k / n))
+    lg.line(tr[k * 2 - 1], tr[k * 2], tr[k * 2 + 1], tr[k * 2 + 2])
+  end
+  local st = p.style
+  lg.push()
+  lg.translate(p.x, p.y)
+  if st == 'arrow' then
+    lg.rotate(a)
+    setc(c)
+    lg.setLineWidth(2)
+    lg.line(-12, 0, 2, 0)
+    lg.polygon('fill', 6, 0, 0, -3.5, 0, 3.5)
+    lg.setLineWidth(1.5)
+    lg.line(-12, 0, -15, -3.5)
+    lg.line(-12, 0, -15, 3.5)
+  elseif st == 'knife' then
+    lg.rotate(age * 22)
+    setc(c)
+    lg.polygon('fill', 7, 0, 0, -2.2, -6, 0, 0, 2.2)
+    setc(COL.ink, 0.8)
+    lg.circle('fill', -4, 0, 1.2)
+  elseif st == 'orb' then
+    local pulse = 1 + 0.25 * math.sin(age * 25)
+    setc(c, 0.22)
+    lg.circle('fill', 0, 0, p.r * 2.4 * pulse)
+    setc(c)
+    lg.circle('fill', 0, 0, p.r)
+    setc(COL.ink, 0.9)
+    lg.circle('fill', 0, 0, p.r * 0.45)
+  elseif st == 'hex' then
+    setc(c, 0.25)
+    lg.circle('fill', 0, 0, p.r * 2.2)
+    setc(c)
+    lg.circle('fill', 0, 0, p.r)
+    for k = 0, 2 do
+      local oa = age * 9 + k * 2.094
+      lg.circle('fill', math.cos(oa) * p.r * 2, math.sin(oa) * p.r * 2, 1.6)
+    end
+  elseif st == 'bomb' then
+    -- solid shell with a dark band and a highlight, so it reads as a bomb rather than a ring
+    setc(c)
+    lg.circle('fill', 0, 0, p.r + 1.5)
+    setc(COL.bg, 0.55)
+    lg.setLineWidth(1.5)
+    lg.circle('line', 0, 0, p.r * 0.75)
+    setc(COL.ink, 0.85)
+    lg.circle('fill', -p.r * 0.35, -p.r * 0.35, 1.3)
+    -- fuse spark at the back
+    local bx, by = -math.cos(a) * (p.r + 3), -math.sin(a) * (p.r + 3)
+    setc(math.floor(age * 30) % 2 == 0 and COL.gold or COL.red)
+    lg.circle('fill', bx, by, 2)
+  elseif st == 'slug' then
+    lg.rotate(a)
+    setc(c)
+    lg.rectangle('fill', -5, -2.5, 10, 5, 1, 1)
+    setc(COL.ink, 0.7)
+    lg.rectangle('fill', 2, -1.5, 3, 3)
+  elseif st == 'coin' then
+    local w = math.max(1.5, p.r * math.abs(math.cos(age * 14)))
+    setc(c)
+    lg.ellipse('fill', 0, 0, w, p.r)
+    setc(COL.bg, 0.6)
+    lg.setLineWidth(1)
+    lg.ellipse('line', 0, 0, w * 0.6, p.r * 0.6)
+  elseif st == 'frost' then
+    lg.rotate(age * 6)
+    setc(COL.cyan, 0.25)
+    lg.circle('fill', 0, 0, p.r * 2.4)
+    setc(COL.ink)
+    lg.polygon('fill', 0, -p.r - 2, p.r * 0.7, 0, 0, p.r + 2, -p.r * 0.7, 0)
+    setc(COL.cyan)
+    lg.setLineWidth(1.5)
+    lg.line(-p.r - 2, 0, p.r + 2, 0)
+  elseif st == 'bolt' then
+    lg.rotate(a)
+    setc(c, 0.3)
+    lg.circle('fill', 0, 0, 6)
+    setc(c)
+    lg.polygon('fill', 8, 0, 0, -3.2, -7, 0, 0, 3.2)
+    setc(COL.ink, 0.9)
+    lg.polygon('fill', 4, 0, 0, -1.2, -3, 0, 0, 1.2)
+  elseif st == 'packet' then
+    lg.rotate(age * 8)
+    setc(c)
+    lg.rectangle('line', -3.5, -3.5, 7, 7)
+    lg.rectangle('fill', -1.5, -1.5, 3, 3)
+  else
+    setc(c)
+    lg.circle('fill', 0, 0, p.r)
+  end
+  lg.pop()
+end
+
 local function drawArena()
   local sx, sy = 0, 0
   if arena.shake > 0 then sx, sy = rr(-1, 1) * arena.shake, rr(-1, 1) * arena.shake end
@@ -1889,17 +2009,7 @@ local function drawArena()
   for _, e in ipairs(arena.enemies) do drawEnemy(e) end
   drawWorm()
 
-  setc(COL.ink)
-  for _, p in ipairs(arena.projs) do
-    if p.shape then
-      local nx, ny = norm(p.vx, p.vy)
-      local len = p.shape == 'arrow' and 12 or 8
-      lg.setLineWidth(2.5)
-      lg.line(p.x - nx * len, p.y - ny * len, p.x, p.y)
-    else
-      lg.circle('fill', p.x, p.y, p.r)
-    end
-  end
+  for _, p in ipairs(arena.projs) do drawShot(p) end
   lg.setLineWidth(2)
   for _, p in ipairs(arena.eprojs) do
     setc(COL.pink)

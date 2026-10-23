@@ -170,3 +170,18 @@ not listen to the result, so the "seamless" verdict rests on these measurements.
 The looping soundtrack, its M toggle, credit and files were removed again on request. The synthesized
 sound effects and the web audio-resume fix are unchanged. Tests (18/18), the 25-level harness and a
 desktop launch pass.
+
+## Projectiles with a look per class (requested)
+
+**Request.** Give each class's projectiles more visual identity.
+
+**Change.** Every projectile now has a style and a fading motion trail in its module's own shade:
+Marksman arrows (head and fletching), Cutthroat spinning knives, Arcanist glowing pulsing orbs, Hexer
+cursed orbs circled by motes, explosive shots as bombs with a sparking fuse, Guardian/Bruiser slugs,
+Merchant spinning gold coins, Frostbinder ice crystals, Artificer turret bolts, and Packet Storm data
+packets. The style comes from what the shot does (explodes, curses, pierces) or else the module's main
+class. Hits throw a few more sparks.
+
+**Checked.** A screenshot gallery firing every style at 2x zoom; bombs first read as hollow rings and turret
+bolts were too dim, both fixed and re-captured. Tests pass (and a pre-existing flaky boss-ring test was
+stabilised); QA bot draw time stays well under a millisecond.
