@@ -32,4 +32,11 @@ if (-not $js.Contains($sig)) { throw 'game.js layout changed; cannot patch fetch
 $js = $js.Replace($sig, $sig + "`n      if (Module.gameData) { setTimeout(function () { callback(Module.gameData); }, 0); return; }")
 [IO.File]::WriteAllText("$root\web\game.js", $js, $utf8)
 if (Test-Path "$root\web\game.data") { Remove-Item "$root\web\game.data" }
+
+# Stamp the script URLs in index.html with a content hash so browsers never run a stale cached build.
+$sha = [System.Security.Cryptography.SHA256]::Create()
+$hash = (-join ($sha.ComputeHash([IO.File]::ReadAllBytes("$root\web\game-data.js"))[0..3] | ForEach-Object { $_.ToString('x2') }))
+$html = [IO.File]::ReadAllText("$root\web\index.html")
+$html = [regex]::Replace($html, 'src="(game-data|game|love)\.js(\?v=[0-9a-f]+)?"', { param($m) 'src="' + $m.Groups[1].Value + '.js?v=' + $hash + '"' })
+[IO.File]::WriteAllText("$root\web\index.html", $html, $utf8)
 Write-Host "Web build updated in $root\web"
