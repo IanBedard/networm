@@ -131,3 +131,16 @@ and class synergy of the hovered perk.
 **Checked.** Test: C opens the catalogue, Tab switches to perks and back (drawing the perks page on the
 way), Esc closes it without leaving the market. Screenshots of both tabs; an overlap between the
 "installed" tag and long perk names was found in the first capture and fixed.
+
+## Sound on the web (fix)
+
+**Problem.** Reported: no sound on the web version. Browsers start Web Audio suspended until the player
+interacts with the page, and love.js never resumes it, so the synthesized sound effects stayed silent.
+(The music was removed on request in cycle 7; the effects were always meant to remain.)
+
+**Change.** The page tracks every AudioContext the engine creates and resumes them on the first click or
+key press.
+
+**Checked.** In the browser the engine has one audio context; instrumenting it showed clicking Start in
+the menu starts an audio buffer (the click effect). The embedded test browser allows autoplay, so the
+suspended-context case itself could not be reproduced there; I could not listen to the output.

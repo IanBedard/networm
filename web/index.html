@@ -91,7 +91,7 @@
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } h1::after { animation: none; } }
 </style>
 
-<script src="game-data.js?v=6d269130"></script>
+<script src="game-data.js?v=ddca5e20"></script>
 
 <div class="wrap">
   <div class="prompt"><b>root@networm</b>:~$ sudo insmod ./worm.ko</div>
@@ -144,6 +144,29 @@
     progressEl.parentNode.hidden = true;
     overlay.hidden = false;
   }
+
+  // Browsers start Web Audio suspended until the player interacts, and love.js never resumes it,
+  // so the game's sound effects stayed silent on the web. Track every AudioContext the engine
+  // creates and resume them on the first click or key press.
+  var audioContexts = [];
+  ['AudioContext', 'webkitAudioContext'].forEach(function (name) {
+    var Real = window[name];
+    if (!Real) return;
+    var Tracked = function (opts) {
+      var ctx = opts === undefined ? new Real() : new Real(opts);
+      audioContexts.push(ctx);
+      return ctx;
+    };
+    Tracked.prototype = Real.prototype;
+    window[name] = Tracked;
+  });
+  function resumeAudio() {
+    audioContexts.forEach(function (ctx) {
+      if (ctx.state === 'suspended') ctx.resume().catch(function () {});
+    });
+  }
+  window.addEventListener('pointerdown', resumeAudio, true);
+  window.addEventListener('keydown', resumeAudio, true);
 
   // keep arrows and space from scrolling the page while playing
   window.addEventListener('keydown', function (e) {
@@ -215,5 +238,5 @@
     Love(Module);
   }
 </script>
-<script src="game.js?v=6d269130"></script>
-<script async src="love.js?v=6d269130" onload="applicationLoad()"></script>
+<script src="game.js?v=ddca5e20"></script>
+<script async src="love.js?v=ddca5e20" onload="applicationLoad()"></script>
