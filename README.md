@@ -10,7 +10,7 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 - Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the worm, and snipers with laser sights.
 - Terminal look: phosphor-green text in Roboto Mono, CRT scanlines, a dmesg-style boot screen.
 
-**Play in the browser:** https://ianbedard.github.io/plotline/
+**Play in the browser:** https://ianbedard.github.io/networm/
 
 ## Controls
 
