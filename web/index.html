@@ -92,11 +92,11 @@
 <script src="game-data.js"></script>
 
 <div class="wrap">
-  <div class="prompt"><b>root@plotline</b>:~$ ./plotline --tty1</div>
+  <div class="prompt"><b>root@plotline</b>:~$ sudo insmod ./worm.ko</div>
   <header>
     <h1>PLOTLINE</h1>
-    <span class="tag">kernel-mode snake auto-battler</span>
-    <p>Steer the snake. Your units kill hostile processes on their own. Survive 25 levels.</p>
+    <span class="tag">kernel worm auto-battler</span>
+    <p>You are the operator. Inject the worm, steer it through the kernel, and let its modules kill every process in the way. Survive 25 levels to get root.</p>
   </header>
 
   <div class="stage" id="stage">
@@ -124,9 +124,9 @@
   </div>
 
   <div class="notes">
-    <div class="note"><b>fight</b><span>The snake never stops. Walls hurt the head. <em>Red shapes</em> are hostile processes: ramming one hurts both of you, and Rammers are built for it. Watch for kamikazes, repulsor pulses and sniper lasers.</span></div>
-    <div class="note"><b>recruit</b><span>Buy units with <strong>gold</strong>; 3 copies rank a unit to Lv2, 9 to Lv3. Upgrade the shop for better tiers, and open the catalog to see every unit.</span></div>
-    <div class="note"><b>combine</b><span>Each unit has classes. Field enough of one class and its bonus switches on. Merchants make money: coin drops, interest, gold per kill.</span></div>
+    <div class="note"><b>step 1: inject</b><span>Press <strong>Space</strong> to load <strong>worm.ko</strong>. The worm never stops moving: steer it with <strong>A/D</strong> or the arrow keys. The kernel's walls hurt the head, so don't crash into the edge.</span></div>
+    <div class="note"><b>step 2: survive</b><span>Your modules attack on their own; keep them alive. <em>Red shapes</em> are hostile processes: kamikazes, repulsors, snipers and the antivirus daemon every 6 levels. Ramming one hurts both of you; Rammer modules are built for it.</span></div>
+    <div class="note"><b>step 3: escalate</b><span>Between levels, spend <strong>gold</strong> at the darkmarket. 3 copies of a module rank it to Lv2, 9 to Lv3. Upgrade the market for rarer tiers, stack classes for bonuses, and run Merchants to farm coins.</span></div>
   </div>
 </div>
 

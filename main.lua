@@ -1,4 +1,4 @@
--- PLOTLINE - a snake auto-battler. (LOVE 11.x)
+-- PLOTLINE - a kernel worm auto-battler. (LOVE 11.x)
 -- Steer a line of heroes that fight on their own. Recruit between
 -- levels, stack copies to rank them up, and combine classes for set bonuses.
 
@@ -8,8 +8,8 @@ local rand = love.math.random
 local W, H = 960, 540
 local AR = {x1 = 24, y1 = 50, x2 = 936, y2 = 524}
 local UR = 8              -- unit collision radius
-local SPACING = 24        -- distance between snake segments
-local SNAKE_SPEED = 150
+local SPACING = 24        -- distance between worm segments
+local WORM_SPEED = 150
 local TURN_SPEED = 4.2
 local MAX_LEVEL = 25
 local DMG_LV = {1, 1.9, 3.2}
@@ -620,7 +620,7 @@ local ENEMIES = {
   mini     = {hp = 10,  r = 6,  speed = 75, dmg = 6,  color = hex('ffb3c1')},
   boss     = {hp = 900, r = 26, speed = 35, dmg = 25, color = hex('ff3b5c')},
   kamikaze = {hp = 14,  r = 7,  speed = 95, dmg = 10, color = hex('ff006e')},   -- rushes in, arms, explodes
-  repulsor = {hp = 45,  r = 12, speed = 35, dmg = 8,  color = hex('e5383b')},   -- pulses a shockwave that shoves the snake
+  repulsor = {hp = 45,  r = 12, speed = 35, dmg = 8,  color = hex('e5383b')},   -- pulses a shockwave that shoves the worm
   sniper   = {hp = 20,  r = 9,  speed = 40, dmg = 16, color = hex('ff9e80')},   -- aims a long laser-sighted shot
 }
 
@@ -722,7 +722,7 @@ local function startLevel()
     units = {}, alive = {}, enemies = {}, projs = {}, eprojs = {}, areas = {}, summons = {},
     parts = {}, texts = {}, spawns = {}, trail = {}, shake = 0, wallCd = 0, coins = {}, kills = 0, kx = 0, ky = 0,
     head = {x = AR.x1 + 200, y = (AR.y1 + AR.y2) / 2, a = 0},
-    boss = isBoss(l), wave = 0, nextWave = 1.5, done = false, lost = false, endT = 0,
+    boss = isBoss(l), wave = 0, nextWave = 1.5, done = false, lost = false, endT = 0, t = 0,
   }
   arena.waves = arena.boss and 1 or math.min(6, 2 + math.floor(l / 4))
   arena.perWave = 5 + math.floor(l * 0.8)
@@ -730,7 +730,7 @@ local function startLevel()
   local counts = classCounts()
   for _, m in ipairs(run.party) do arena.units[#arena.units + 1] = buildUnit(m, counts) end
   arena.coinChance = ({0, 0.06, 0.15})[classTier(counts, 'merchant') + 1]
-  banner('LEVEL ' .. l, arena.boss and 'Boss level!' or nil)
+  banner('LEVEL ' .. l, arena.boss and 'antivirus daemon detected!' or nil)
   paused = false
   state = 'arena'
 end
@@ -806,14 +806,14 @@ local function sampleTrail(d)
   return px, py, arena.head.a
 end
 
-local function updateSnake(dt)
+local function updateWorm(dt)
   local h = arena.head
   local turn = 0
   if love.keyboard.isDown('a', 'left') then turn = turn - 1 end
   if love.keyboard.isDown('d', 'right') then turn = turn + 1 end
   h.a = h.a + turn * TURN_SPEED * dt
-  h.x = h.x + math.cos(h.a) * SNAKE_SPEED * dt
-  h.y = h.y + math.sin(h.a) * SNAKE_SPEED * dt
+  h.x = h.x + math.cos(h.a) * WORM_SPEED * dt
+  h.y = h.y + math.sin(h.a) * WORM_SPEED * dt
   -- shove from repulsor pulses, fading out
   h.x, h.y = h.x + arena.kx * dt, h.y + arena.ky * dt
   local kd = math.max(0, 1 - dt * 5)
@@ -996,7 +996,7 @@ local function updateSummons(dt)
   end
 end
 
--- kamikaze reached the snake: blow up, hurting nearby segments (no kill reward)
+-- kamikaze reached the worm: blow up, hurting nearby segments (no kill reward)
 local function kamikazeBoom(e)
   e.dead = true
   local R = 50
@@ -1181,10 +1181,11 @@ local function updateEnemies(dt)
 end
 
 local function updateArena(dt)
+  arena.t = arena.t + dt
   arena.alive = {}
   for _, u in ipairs(arena.units) do if not u.dead then arena.alive[#arena.alive + 1] = u end end
 
-  if #arena.alive > 0 then updateSnake(dt) end
+  if #arena.alive > 0 then updateWorm(dt) end
   updateUnits(dt)
   updateProjectiles(dt)
   updateAreas(dt)
@@ -1358,7 +1359,7 @@ local function glyph(cl, x, y, s)
   end
 end
 
--- snake segment: rounded block in class colour with its class symbol
+-- worm segment: rounded block in class colour with its class symbol
 local function marker(x, y, r, what, fill, lv, a, noGlyph)
   -- `what` is a unit definition (its own shade) or a class key (the class colour)
   local cl, color
@@ -1459,7 +1460,7 @@ local function drawEnemy(e)
   end
 end
 
-local function drawSnake()
+local function drawWorm()
   for i = #arena.alive, 1, -1 do
     local u = arena.alive[i]
     local head = i == 1
@@ -1477,6 +1478,31 @@ local function drawSnake()
       setc(f < 0.3 and COL.red or COL.green)
       lg.rectangle('fill', u.x - 10, u.y - 18, 20 * f, 3, 1.5, 1.5)
     end
+  end
+end
+
+-- first-level tutorial, written as the operator's notes while the worm installs
+local BRIEFING = {
+  '> worm.ko injected into /dev/arena0. it never stops moving.',
+  '> steer it with [A]/[D] or [Left]/[Right]. kernel walls hurt the head.',
+  '> your modules fire on their own. your only job: keep them alive.',
+  '> red shapes are hostile processes. ramming one hurts you both.',
+  '> kill every wave to escalate. spend the loot at the darkmarket.',
+}
+local function drawBriefing()
+  local t = arena.t
+  local alpha = math.min(1, (24 - t) / 2)
+  if alpha <= 0 then return end
+  local x, y = AR.x1 + 64, AR.y2 - 18 - #BRIEFING * 16
+  setc(COL.bg, 0.75 * alpha)
+  lg.rectangle('fill', x - 8, y - 8, 520, #BRIEFING * 16 + 12)
+  local chars = math.floor(t * 38)
+  for i, line in ipairs(BRIEFING) do
+    if chars <= 0 then break end
+    local shown = line:sub(1, chars)
+    chars = chars - #line - 12
+    setc(i == #BRIEFING and COL.ink or COL.green, alpha)
+    text(shown, x, y + (i - 1) * 16, 's')
   end
 end
 
@@ -1570,7 +1596,7 @@ local function drawArena()
   end
 
   for _, e in ipairs(arena.enemies) do drawEnemy(e) end
-  drawSnake()
+  drawWorm()
 
   setc(COL.ink)
   for _, p in ipairs(arena.projs) do
@@ -1603,6 +1629,8 @@ local function drawArena()
   end
   lg.setScissor()
   lg.pop()
+
+  if run.level == 1 then drawBriefing() end
 
   -- HUD
   setc(COL.dim)
@@ -1690,11 +1718,11 @@ local function drawCatalogue(mx, my)
   lg.rectangle('fill', 0, 0, W, H)
   card(CAT.x, CAT.y, CAT.w, CAT.h)
   setc(COL.dim)
-  text('$ man plotline-units', CAT.x + 20, CAT.y + 8, 's')
+  text('$ man worm-modules', CAT.x + 20, CAT.y + 8, 's')
   setc(COL.ink)
   text('Catalogue', CAT.x + 20, CAT.y + 20, 'l')
   setc(COL.dim)
-  text(('Every unit the shop can offer. Odds shown for shop level %d; upgrade the shop to unlock higher tiers.'):format(run.shopLevel),
+  text(('Every module the market can sell. Odds shown for market level %d; upgrade it to unlock higher tiers.'):format(run.shopLevel),
     CAT.x + 20, CAT.y + 46, 's')
   button(CAT_CLOSE, '[Esc] close', true, inRect(mx, my, CAT_CLOSE))
 
@@ -1745,7 +1773,7 @@ local function drawCatalogue(mx, my)
     text(table.concat(stats, '  ·  ') .. '  (at Lv1)', CAT.x + CAT.w - 420, fy + 2, 's', 'right', 400)
   else
     setc(COL.dim)
-    text('Hover a unit to see what it does. Units you own show their level.', CAT.x + 20, fy + 8, 's')
+    text('Hover a module to read its exploit. Modules already in your worm show their level.', CAT.x + 20, fy + 8, 's')
   end
 end
 
@@ -1756,7 +1784,7 @@ local function drawShop()
   -- header
   local ls = ('level %02d/%d'):format(l, MAX_LEVEL)
   setc(COL.dim)
-  text('root@plotline:~/shop# next', 24, 6, 's')
+  text('root@plotline:~/darkmarket#', 24, 6, 's')
   setc(COL.ink)
   text(ls, 24, 19, 'l')
   if isBoss(l) then pill('BOSS', 24 + textW(ls, 'l') + 12, 26, COL.bg, COL.red) end
@@ -1775,7 +1803,7 @@ local function drawShop()
   -- shop level and the tier odds it gives
   local hx = 312
   setc(COL.dim)
-  text(('shop lv%d/%d  ·  tier odds'):format(run.shopLevel, SHOP_MAX), hx, 6, 's')
+  text(('market lv%d/%d  ·  tier odds'):format(run.shopLevel, SHOP_MAX), hx, 6, 's')
   local odds = SHOP_ODDS[run.shopLevel]
   for k = 1, 4 do
     local s = ('T%d  %d%%'):format(k, math.floor(odds[k] * 100 + 0.5))
@@ -1818,8 +1846,8 @@ local function drawShop()
     button(sellRect(i), 'kill $' .. sellValue(m), true, inRect(mx, my, sellRect(i)))
   end
   setc(COL.dim)
-  if #run.party == 0 then text('party/ is empty.\nrecruit a unit to boot.', SH.px + 4, SH.py + 4, 'm') end
-  text('# first unit = head of the snake\n# 3 copies -> Lv2, 9 copies -> Lv3', SH.px + 4, 466, 's')
+  if #run.party == 0 then text('the worm has no modules.\nbuy one from the market ->', SH.px + 4, SH.py + 4, 'm') end
+  text('# first unit = head of the worm\n# 3 copies -> Lv2, 9 copies -> Lv3', SH.px + 4, 466, 's')
 
   -- recruit cards
   for i = 1, 4 do
@@ -1863,8 +1891,8 @@ local function drawShop()
   button(REROLL_BTN, '[R] reroll $' .. REROLL_COST, run.gold >= REROLL_COST, inRect(mx, my, REROLL_BTN))
   local maxed = run.shopLevel >= SHOP_MAX
   local upCost = SHOP_UP_COST[run.shopLevel]
-  button(SHOPUP_BTN, maxed and 'shop maxed' or ('[U] upgrade $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
-  button(START_BTN, '[Space] run level ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
+  button(SHOPUP_BTN, maxed and 'market maxed' or ('[U] upgrade $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
+  button(START_BTN, '[Space] inject lvl ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
 
   -- class bonuses as a horizontal bar chart
   card(360, 340, 576, 184)
@@ -1918,11 +1946,11 @@ end
 ---------------------------------------------------------------------------
 local MENU_BTN = {x = 182, y = 290, w = 220, h = 38}
 local BOOT_LOG = {
-  'plotline: booting kernel 25.0-snake (tty1)',
-  'mm: mapped 40 units into /dev/party',
-  'sched: registered 11 classes, 5 shop levels',
-  'net: hostile processes detected on /dev/arena0',
-  'init: waiting for operator input...',
+  'ssh root@kernel ... access granted',
+  'scp worm.ko /lib/modules/ ... 40 modules, 11 classes',
+  'scan: hostile processes on /dev/arena0 (25 levels deep)',
+  'hint: steer with [A]/[D]; modules fire on their own',
+  'worm: awaiting operator...',
 }
 
 local function drawMenu()
@@ -1951,12 +1979,12 @@ local function drawMenu()
     lg.rectangle('fill', 184 + textW('PLOTLINE', 'xl'), 172, 26, 52)
   end
   setc(COL.mid)
-  text('kernel-mode snake auto-battler. you steer; your units kill processes.', 182, 240, 's')
+  text('you are the operator. steer the worm; its modules kill every process in reach.', 182, 240, 's')
   setc(COL.dim)
-  text('25 levels  ·  40 units  ·  11 classes  ·  5 shop levels', 182, 258, 's')
-  button(MENU_BTN, '[Space] ./plotline --run', true, inRect(mx, my, MENU_BTN), true)
+  text('25 levels  ·  40 modules  ·  11 classes  ·  5 market tiers', 182, 258, 's')
+  button(MENU_BTN, '[Space] insmod worm.ko', true, inRect(mx, my, MENU_BTN), true)
 
-  -- a little snake chasing processes around the bottom of the window
+  -- a little worm chasing processes around the bottom of the window
   for k = 0, 4 do
     local t = time * 0.7 + k * 1.3
     setc(COL.red)
@@ -1974,9 +2002,9 @@ local function drawMenu()
   end
 
   setc(COL.mid)
-  ctext('steer: [A]/[D] or [Left]/[Right]   ·   your units attack on their own', W / 2, 494, 's')
+  ctext('steer the worm: [A]/[D] or [Left]/[Right]   ·   modules attack on their own', W / 2, 494, 's')
   setc(COL.dim)
-  ctext('avoid the walls. ramming hurts both sides. [P] pause', W / 2, 512, 's')
+  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause', W / 2, 512, 's')
 end
 
 local function drawEnd(title, c, sub)
@@ -2023,8 +2051,8 @@ function love.draw()
   if state == 'menu' then drawMenu()
   elseif state == 'shop' then drawShop()
   elseif state == 'arena' then drawArena()
-  elseif state == 'gameover' then drawEnd('KERNEL PANIC', COL.red, 'not syncing: snake died on level ' .. run.level)
-  elseif state == 'win' then drawEnd('EXIT 0', COL.green, 'all ' .. MAX_LEVEL .. ' levels cleared. the kernel is yours.')
+  elseif state == 'gameover' then drawEnd('KERNEL PANIC', COL.red, 'not syncing: worm purged on level ' .. run.level)
+  elseif state == 'win' then drawEnd('EXIT 0', COL.green, 'root obtained: all ' .. MAX_LEVEL .. ' levels cleared. the kernel is yours.')
   end
   -- CRT scanlines
   lg.setColor(0, 0, 0, 0.22)
@@ -2040,17 +2068,17 @@ local function reroll()
 end
 
 local function upgradeShop()
-  if run.shopLevel >= SHOP_MAX then play('error'); shopMsg('The shop is already max level', COL.red); return end
+  if run.shopLevel >= SHOP_MAX then play('error'); shopMsg('The market is already max level', COL.red); return end
   local cost = SHOP_UP_COST[run.shopLevel]
-  if run.gold < cost then play('error'); shopMsg('Upgrading the shop costs $' .. cost, COL.red); return end
+  if run.gold < cost then play('error'); shopMsg('Upgrading the market costs $' .. cost, COL.red); return end
   run.gold = run.gold - cost
   run.shopLevel = run.shopLevel + 1
   play('buy')
-  shopMsg('Shop upgraded to level ' .. run.shopLevel .. ' - better odds from the next roll', COL.green)
+  shopMsg('Market upgraded to level ' .. run.shopLevel .. ' - better odds from the next roll', COL.green)
 end
 
 local function tryStart()
-  if #run.party == 0 then play('error'); shopMsg('Buy a unit first!', COL.red); return end
+  if #run.party == 0 then play('error'); shopMsg('The worm needs at least one module!', COL.red); return end
   play('click')
   startLevel()
 end

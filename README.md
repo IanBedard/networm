@@ -1,12 +1,12 @@
 # Plotline
 
-A snake auto-battler made with [LÖVE](https://love2d.org) 11. Steer a line of heroes that fight on their own, recruit units between levels, stack copies to rank them up, and combine classes for set bonuses. Survive 25 levels, with a boss every 6.
+A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the operator: inject a worm into the kernel, steer it, and let its modules kill every hostile process on their own. Between levels, buy modules at the darkmarket, stack copies to rank them up, and combine classes for set bonuses. Survive 25 levels, with an antivirus boss every 6.
 
 - 40 units across 4 tiers and 11 classes; every class has its own colour and each hero its own shade of it.
 - Merchants make money: enemies can drop coins, and merchants add interest, gold per level, or gold per kill.
-- The shop has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
+- The darkmarket (shop) has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
 - Colliding with an enemy damages both sides. Rammers take half the collision damage and hit much harder.
-- Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the snake, and snipers with laser sights.
+- Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the worm, and snipers with laser sights.
 - Terminal look: phosphor-green text in Roboto Mono, CRT scanlines, a dmesg-style boot screen.
 
 **Play in the browser:** https://ianbedard.github.io/plotline/
@@ -17,8 +17,8 @@ A snake auto-battler made with [LÖVE](https://love2d.org) 11. Steer a line of h
 | --- | --- |
 | A / D or Left / Right | Steer |
 | Space | Start a run / start the next level |
-| R | Reroll the shop |
-| U | Upgrade the shop |
+| R | Reroll the darkmarket |
+| U | Upgrade the darkmarket |
 | C | Open / close the catalogue |
 | Right-click a unit | Sell it |
 | P or Esc | Pause |
