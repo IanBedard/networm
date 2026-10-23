@@ -1741,16 +1741,43 @@ local function drawArena()
   else
     px = px + pill(('wave %d/%d'):format(math.max(1, arena.wave), arena.waves), px, 24, COL.mintText, COL.mintSoft) + 6
   end
-  pill(#arena.enemies .. ' hostile procs', px, 24, COL.red, COL.pinkSoft)
+  px = px + pill(#arena.enemies .. ' hostile procs', px, 24, COL.red, COL.pinkSoft)
   setc(COL.dim)
   text('gold', W - 224, 4, 's', 'right', 200)
   setc(COL.gold)
   text('$' .. run.gold, W - 224, 17, 'l', 'right', 200)
+
+  -- module table: every segment in worm order (head first) with its health, like `top`
+  local mx0 = math.max(400, px + 18)
+  setc(COL.dim)
+  text('top - worm modules', mx0, 4, 's')
+  for i, u in ipairs(arena.units) do
+    local x = mx0 + (i - 1) * 54
+    if u.dead then
+      setc(COL.grid)
+      lg.rectangle('line', x + 0.5, 23.5, 15, 12)
+      setc(COL.red, 0.7)
+      text('x', x + 4, 22, 's')
+    else
+      marker(x + 8, 30, 6.5, u.def, u.flash > 0 and COL.red or nil, nil, 0, true)
+      local f = u.hp / u.maxhp
+      local c = f < 0.3 and COL.red or (f < 0.6 and COL.gold or COL.green)
+      setc(COL.grid)
+      lg.rectangle('fill', x + 18, 27, 30, 6)
+      setc(c, (f < 0.3 and math.floor(time * 6) % 2 == 0) and 0.45 or 1)
+      lg.rectangle('fill', x + 18, 27, 30 * f, 6)
+    end
+  end
+
   if boss then
+    -- the antivirus health sits on the arena's top edge, out of the way of the module table
+    local bw = 320
+    setc(COL.red, 0.8)
+    text('ANTIVIRUS', W / 2 - bw / 2, AR.y1 + 6, 's')
     setc(COL.grid)
-    lg.rectangle('fill', W / 2 + 10, 26, 240, 9)
+    lg.rectangle('fill', W / 2 - bw / 2 + 72, AR.y1 + 9, bw - 72, 7)
     setc(COL.red)
-    lg.rectangle('fill', W / 2 + 10, 26, 240 * math.max(0, boss.hp / boss.maxhp), 9)
+    lg.rectangle('fill', W / 2 - bw / 2 + 72, AR.y1 + 9, (bw - 72) * math.max(0, boss.hp / boss.maxhp), 7)
   end
 
   if arena.banner then

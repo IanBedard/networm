@@ -52,3 +52,17 @@ worm ("TRACE COMPLETE" banner), so a level always resolves.
 20 s; a sniper with infinite HP switches to hunting and closes in. All three fail on the previous
 commit and pass now. QA bot on the stalling seed: average level 5.3 -> 9.3 (best run reached level 16).
 The remaining bot timeouts come from the bot's own steering (it avoids walls and blobs), not the game.
+
+## Cycle 4: see the worm's health at a glance
+
+**Problem.** A module's health only showed as a tiny bar over its segment, and only after it was hurt,
+so the first sign that a module was in trouble was usually its death message.
+
+**Change.** The HUD now has a `top`-style module table: one entry per segment in worm order (head
+first) with its colour block and a health bar that is green, amber below 60%, and blinking red below
+30%; a terminated module shows as an empty slot with an x. The antivirus health bar moved to the
+arena's top edge so the two never overlap.
+
+**Checked.** Screenshot of a level-12 boss fight with modules forced to 100/75/dead/20/90/60%: every
+entry and the boss bar render where expected. Behaviour tests and the random-play 25-level harness pass.
+(While capturing it, cycle 1's pause-on-focus-loss correctly paused the unfocused test window.)
