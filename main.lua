@@ -14,8 +14,9 @@ local TURN_SPEED = 4.2
 local MAX_LEVEL = 25
 local DMG_LV = {1, 1.9, 3.2}
 local HP_LV = {1, 1.5, 2.2}
+local HP_SCALE = 0.5      -- heroes are fragile: every unit's listed HP is halved in combat
 local HEAL_LV = {1, 1.4, 1.9}
-local COST = {1, 2, 4}
+local COST = {1, 2, 4, 6}
 local REROLL_COST = 1
 
 local scale, ox, oy = 1, 0, 0
@@ -135,10 +136,11 @@ local CLASSES = {
   healer   = {name = 'Sage',       color = hex('8fe3bb'), glyphInk = true, tiers = {1, 2}, desc = {'Healing +50%', 'Healing +100%'}},
   nuker    = {name = 'Demolisher', color = hex('9a9aa3'), tiers = {2, 4}, desc = {'Demolisher blasts +30% size', 'Demolisher blasts +60% size'}},
   conjurer = {name = 'Artificer',  color = hex('16865a'), tiers = {1, 2}, desc = {'Gadgets +50% dmg & duration', 'Gadgets +100% dmg & duration'}},
-  voider   = {name = 'Hexer',      color = hex('55555c'), tiers = {2, 3}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
-  enforcer = {name = 'Bruiser',    color = hex('c4c4cc'), glyphInk = true, tiers = {1, 2}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
+  voider   = {name = 'Hexer',      color = hex('55555c'), tiers = {2, 4}, desc = {'Damage over time +50%', 'Damage over time +100%'}},
+  enforcer = {name = 'Bruiser',    color = hex('c4c4cc'), glyphInk = true, tiers = {2, 4}, desc = {'All units +15% max HP', 'All units +30% max HP'}},
 }
-local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer'}
+CLASSES.rammer = {name = 'Rammer', color = hex('2f3a4a'), tiers = {2, 4}, desc = {'Rams +50% dmg, -70% hit damage', 'Rams +100% dmg, -85% hit damage'}}
+local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer', 'rammer'}
 
 ---------------------------------------------------------------------------
 -- combat helpers (used by unit attacks)
@@ -211,7 +213,7 @@ local function shootFrom(x, y, angle, o)
   arena.projs[#arena.projs + 1] = {
     x = x, y = y, vx = math.cos(angle) * spd, vy = math.sin(angle) * spd, r = o.r or 4,
     dmg = o.dmg or o.src.dmg, src = o.src, color = o.color or o.src.color, pierce = o.pierce or 0,
-    chain = o.chain or 0, explode = o.explode, dot = o.dot, life = o.life or 1.6, hit = {}, shape = o.shape,
+    chain = o.chain or 0, explode = o.explode, dot = o.dot, stun = o.stun, life = o.life or 1.6, hit = {}, shape = o.shape,
   }
 end
 local function shoot(u, angle, o)
@@ -232,7 +234,7 @@ end
 local function summon(kind, x, y, src, o)
   arena.summons[#arena.summons + 1] = {
     kind = kind, x = x, y = y, src = src, a = rr(0, 6.28), cd = 0,
-    life = (o.life or 6) * src.summonm, dmg = (o.dmg or src.dmg) * src.summonm,
+    life = (o.life or 6) * src.summonm, dmg = (o.dmg or src.dmg) * src.summonm, explode = o.explode,
   }
 end
 
@@ -338,12 +340,110 @@ local UNITS = {
   assassin = {name = 'Nightblade', tier = 3, classes = {'rogue', 'voider'}, hp = 120, dmg = 30, cd = 2.4, range = 320, critBonus = 0.2,
     desc = 'Throws a piercing poisoned blade. +20% crit chance.',
     attack = function(u, t) shoot(u, angleTo(u, t), {speed = 560, pierce = 99, dot = u.dmg * 1.5, shape = 'knife', r = 5}); return true end},
+
+  -- more tier 1-3
+  pikeguard = {name = 'Pikeguard', tier = 1, classes = {'warrior', 'enforcer'}, hp = 160, dmg = 14, cd = 1.5, range = 60,
+    desc = 'Thrusts a pike forward, knocking enemies back.',
+    attack = function(u, t)
+      local a = angleTo(u, t)
+      blast(u.x + math.cos(a) * 26, u.y + math.sin(a) * 26, 30 * u.aream, u.dmg, u, {knock = 220})
+      return true
+    end},
+  slinger = {name = 'Slinger', tier = 1, classes = {'ranger', 'rogue'}, hp = 85, dmg = 6, cd = 0.9, range = 260,
+    desc = 'Hurls two quick stones at the nearest enemy.',
+    attack = function(u, t)
+      local a = angleTo(u, t)
+      shoot(u, a - 0.08, {speed = 380})
+      shoot(u, a + 0.08, {speed = 380})
+      return true
+    end},
+  frostbinder = {name = 'Frostbinder', tier = 2, classes = {'mage', 'enforcer'}, hp = 120, dmg = 12, cd = 2.6, range = 280,
+    desc = 'Launches a frost orb that bursts and freezes enemies for 1s.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 280, explode = 40, stun = 1, r = 6}); return true end},
+  soulmender = {name = 'Soulmender', tier = 2, classes = {'healer', 'voider'}, hp = 110, dmg = 6, cd = 4, noTarget = true, silent = true,
+    desc = 'Heals the most injured ally 15% and curses the nearest enemy.',
+    attack = function(u)
+      local did, best, br = false, nil, 0.999
+      for _, o in ipairs(arena.alive) do
+        local r = o.hp / o.maxhp
+        if r < br then best, br = o, r end
+      end
+      if best then healUnit(best, best.maxhp * 0.15 * HEAL_LV[u.lv], u); did = true end
+      local t = nearestEnemy(u.x, u.y, 260)
+      if t then applyDot(t, u.dmg * 4, 3, u); burst(t.x, t.y, COL.purple, 6, 80, 2); did = true end
+      if did then play('heal') end
+      return did
+    end},
+  volleymaster = {name = 'Volleymaster', tier = 3, classes = {'ranger', 'warrior'}, hp = 150, dmg = 14, cd = 2.6, range = 200,
+    desc = 'Looses a ring of 10 arrows that each pierce one enemy.',
+    attack = function(u)
+      local off = rr(0, math.pi * 2)
+      for i = 1, 10 do shoot(u, off + i / 10 * math.pi * 2, {speed = 420, pierce = 1, shape = 'arrow'}) end
+      return true
+    end},
+  clockwright = {name = 'Clockwright', tier = 3, classes = {'conjurer', 'nuker'}, hp = 120, dmg = 12, cd = 8, noTarget = true,
+    desc = 'Builds 2 mortar turrets whose shots explode, for 6s.',
+    attack = function(u)
+      for i = 1, 2 do summon('turret', u.x + rr(-20, 20), u.y + rr(-20, 20), u, {life = 6, explode = 30}) end
+      return true
+    end},
+
+  -- rammers: built to hit enemies with their body; collisions hurt them half as much
+  tusker = {name = 'Tusker', tier = 1, classes = {'rammer', 'warrior'}, hp = 170, dmg = 0, ram = 30, cd = 1, noAttack = true,
+    desc = 'Rams enemies for heavy damage. Takes half damage from collisions.'},
+  spikeback = {name = 'Spikeback', tier = 1, classes = {'rammer', 'enforcer'}, hp = 150, dmg = 10, ram = 20, cd = 2, range = 40, aoe = true, silent = true,
+    desc = 'Rams enemies and bristles spikes that hit everything adjacent.',
+    attack = function(u) blast(u.x, u.y, 38 * u.aream, u.dmg, u, {faint = true}); return true end},
+  ironhorn = {name = 'Ironhorn', tier = 2, classes = {'rammer', 'enforcer'}, hp = 200, dmg = 0, ram = 45, ramStun = 1, cd = 1, noAttack = true,
+    desc = 'Rams so hard that enemies are stunned for 1s.'},
+  avalanche = {name = 'Avalanche', tier = 3, classes = {'rammer', 'warrior'}, hp = 260, dmg = 0, ram = 70, ramSplash = 55, cd = 1, noAttack = true,
+    desc = 'Each ram sends a shockwave through nearby enemies.'},
+
+  -- tier 4
+  colossus = {name = 'Colossus', tier = 4, classes = {'rammer', 'enforcer'}, hp = 380, dmg = 0, ram = 120, ramSplash = 70, ramStun = 1, cd = 1, noAttack = true,
+    desc = 'A living battering ram: huge ram damage, shockwave and stun.'},
+  archmage = {name = 'Archmage', tier = 4, classes = {'mage', 'nuker'}, hp = 140, dmg = 40, cd = 4, range = 360,
+    desc = 'Rains 5 meteors on enemies in range.',
+    attack = function(u)
+      local pool = {}
+      for _, e in ipairs(arena.enemies) do
+        if not e.dead and dist(u.x, u.y, e.x, e.y) < 360 then pool[#pool + 1] = e end
+      end
+      if #pool == 0 then return false end
+      for i = 1, 5 do
+        local e = choice(pool)
+        blast(e.x + rr(-12, 12), e.y + rr(-12, 12), 50 * u.aream, u.dmg, u, {delay = 0.3 + i * 0.12})
+      end
+      return true
+    end},
+  warlord = {name = 'Warlord', tier = 4, classes = {'warrior', 'enforcer'}, hp = 320, dmg = 40, cd = 4, range = 110, aoe = true,
+    desc = 'Slams the ground, stunning and hurling back everything nearby.',
+    attack = function(u) blast(u.x, u.y, 120 * u.aream, u.dmg, u, {stun = 1.5, knock = 400}); shake(7); return true end},
+  deadeye = {name = 'Deadeye', tier = 4, classes = {'ranger', 'rogue'}, hp = 130, dmg = 90, cd = 3, range = 450, critBonus = 0.3,
+    desc = 'Snipes through every enemy in a line. +30% crit chance.',
+    attack = function(u, t) shoot(u, angleTo(u, t), {speed = 900, pierce = 99, shape = 'arrow', life = 1}); return true end},
+  voidcaller = {name = 'Voidcaller', tier = 4, classes = {'voider', 'conjurer'}, hp = 140, dmg = 10, cd = 6, range = 320,
+    desc = 'Opens a rift that drags enemies in and drains them for 3s.',
+    attack = function(u, t)
+      blast(t.x, t.y, 75 * u.aream, u.dmg * u.dotm * u.summonm, u,
+        {dur = 3 * u.summonm, tick = 0.3, knock = -140, color = COL.purple, nocrit = true})
+      return true
+    end},
+  dawnbringer = {name = 'Dawnbringer', tier = 4, classes = {'healer', 'mage'}, hp = 150, dmg = 24, cd = 5, noTarget = true, silent = true,
+    desc = 'Heals all allies 15% and sears enemies around the line.',
+    attack = function(u)
+      for _, o in ipairs(arena.alive) do healUnit(o, o.maxhp * 0.15 * HEAL_LV[u.lv], u) end
+      blast(u.x, u.y, 100 * u.aream, u.dmg, u)
+      play('heal')
+      return true
+    end},
 }
 
-local UNIT_TIERS = {{}, {}, {}}
-for _, k in ipairs({'vagrant', 'swordsman', 'archer', 'wizard', 'scout', 'cleric',
-                    'outlaw', 'pyromancer', 'barbarian', 'sentry', 'witch', 'saboteur',
-                    'cannoneer', 'elementor', 'juggernaut', 'priest', 'plaguedoctor', 'assassin'}) do
+local UNIT_TIERS = {{}, {}, {}, {}}
+for _, k in ipairs({'vagrant', 'swordsman', 'archer', 'wizard', 'scout', 'cleric', 'pikeguard', 'slinger', 'tusker', 'spikeback',
+                    'outlaw', 'pyromancer', 'barbarian', 'sentry', 'witch', 'saboteur', 'frostbinder', 'soulmender', 'ironhorn',
+                    'cannoneer', 'elementor', 'juggernaut', 'priest', 'plaguedoctor', 'assassin', 'volleymaster', 'clockwright', 'avalanche',
+                    'archmage', 'warlord', 'deadeye', 'voidcaller', 'dawnbringer', 'colossus'}) do
   UNITS[k].key = k
   table.insert(UNIT_TIERS[UNITS[k].tier], k)
 end
@@ -370,19 +470,26 @@ local function classTier(counts, cl)
   return 0
 end
 
-local function tierOdds(l)
-  if l <= 2 then return {1, 0, 0}
-  elseif l <= 5 then return {0.75, 0.25, 0}
-  elseif l <= 9 then return {0.5, 0.4, 0.1}
-  elseif l <= 14 then return {0.35, 0.45, 0.2}
-  end
-  return {0.25, 0.45, 0.3}
-end
+-- the shop is levelled up with gold; each level shifts the tier odds upward
+local SHOP_MAX = 5
+local SHOP_UP_COST = {4, 8, 12, 16}
+local SHOP_ODDS = {
+  {1, 0, 0, 0},
+  {0.7, 0.3, 0, 0},
+  {0.45, 0.4, 0.15, 0},
+  {0.3, 0.4, 0.25, 0.05},
+  {0.2, 0.35, 0.3, 0.15},
+}
 local function rollOffers()
-  local o = tierOdds(run.level)
+  local o = SHOP_ODDS[run.shopLevel]
+  local top = 1
+  for k = 1, 4 do if o[k] > 0 then top = k end end
   for i = 1, 4 do
-    local r, tier = rand(), 3
-    if r < o[1] then tier = 1 elseif r < o[1] + o[2] then tier = 2 end
+    local r, tier = rand(), top
+    for k = 1, top do
+      if r < o[k] then tier = k; break end
+      r = r - o[k]
+    end
     run.offers[i] = choice(UNIT_TIERS[tier])
   end
 end
@@ -392,7 +499,7 @@ end
 local function shopMsg(s, c) run.msg = {s = s, c = c or COL.text, t = 2} end
 
 local function newRun()
-  run = {gold = 4, level = 1, party = {}, offers = {}}
+  run = {gold = 4, level = 1, shopLevel = 1, party = {}, offers = {}}
   rollOffers()
   state = 'shop'
 end
@@ -524,8 +631,13 @@ local function buildUnit(m, counts)
   if has('nuker') then u.aream = 1 + 0.3 * t('nuker') end
   if has('conjurer') then u.summonm = 1 + 0.5 * t('conjurer') end
   if has('voider') then u.dotm = 1 + 0.5 * t('voider') end
-  u.maxhp = u.maxhp * (1 + 0.15 * t('enforcer'))
+  u.maxhp = u.maxhp * HP_SCALE * (1 + 0.15 * t('enforcer'))
   u.hp = u.maxhp
+  -- every segment rams what it touches; rammers hit harder and take less back
+  local rammer = has('rammer')
+  u.ram = (d.ram or 6) * DMG_LV[lv] * (rammer and (1 + 0.5 * t('rammer')) or 1)
+  u.contactTaken = rammer and ({0.5, 0.3, 0.15})[t('rammer') + 1] or 1
+  u.ramStun, u.ramSplash = d.ramStun, d.ramSplash
   return u
 end
 
@@ -578,6 +690,15 @@ local function hurtUnit(u, dmg, force)
     shake(8)
     addText(u.x, u.y - 24, u.def.name .. ' died!', COL.red, true)
   end
+end
+
+-- a segment that collides with an enemy hits it back
+local function ramEnemy(e, u)
+  damageEnemy(e, u.ram, u)
+  burst(e.x, e.y, u.color, 6, 140, 2)
+  if u.ramStun then e.stun = math.max(e.stun, u.ramStun) end
+  if u.ramSplash then blast(e.x, e.y, u.ramSplash * u.aream, u.ram * 0.5, u, {knock = 260}) end
+  play('hit')
 end
 
 local function sampleTrail(d)
@@ -633,7 +754,7 @@ local function updateUnits(dt)
     u.a = (i == 1) and arena.head.a or a
     u.flash, u.iframe = u.flash - dt, u.iframe - dt
     u.cd = u.cd - dt * u.aspd
-    if u.cd <= 0 then
+    if u.cd <= 0 and not u.def.noAttack then
       local d, ok = u.def, false
       if d.noTarget then
         ok = d.attack(u)
@@ -662,8 +783,9 @@ local function updateProjectiles(dt)
         if not e.dead and not p.hit[e] and dist(p.x, p.y, e.x, e.y) < p.r + e.r then
           p.hit[e] = true
           if p.explode then
-            blast(p.x, p.y, p.explode * p.src.aream, p.dmg, p.src)
+            blast(p.x, p.y, p.explode * p.src.aream, p.dmg, p.src, {stun = p.stun})
           else
+            if p.stun then e.stun = math.max(e.stun, p.stun) end
             damageEnemy(e, p.dmg, p.src)
             play('hit')
           end
@@ -761,7 +883,7 @@ local function updateSummons(dt)
         local t = nearestEnemy(s.x, s.y, 240)
         if t then
           s.a = angleTo(s, t)
-          shootFrom(s.x, s.y, s.a, {src = s.src, dmg = s.dmg, speed = 380})
+          shootFrom(s.x, s.y, s.a, {src = s.src, dmg = s.dmg, speed = 380, explode = s.explode})
           play('shoot', 1.4)
           s.cd = 0.5
         else
@@ -871,7 +993,11 @@ local function updateEnemies(dt)
       if e.spawnT <= 0 then
         for _, u in ipairs(arena.alive) do
           if dist(e.x, e.y, u.x, u.y) < e.r + UR then
-            if e.ccd <= 0 then hurtUnit(u, e.dmg); e.ccd = 0.6 end
+            if e.ccd <= 0 then
+              e.ccd = 0.6
+              hurtUnit(u, e.dmg * u.contactTaken)
+              ramEnemy(e, u)
+            end
             local nx, ny = norm(e.x - u.x, e.y - u.y)
             local k = e.type == 'boss' and 60 or (e.type == 'tank' and 120 or 240)
             e.kx, e.ky = nx * k, ny * k
@@ -1042,6 +1168,9 @@ local function glyph(cl, x, y, s)
     lg.circle('line', x, y, s * 0.8)
   elseif cl == 'voider' then
     lg.arc('fill', x, y, s, math.pi / 2, math.pi * 1.5)
+  elseif cl == 'rammer' then
+    lg.setLineWidth(math.max(1.5, s * 0.5))
+    lg.line(x - s * 0.7, y - s * 0.9, x + s * 0.5, y, x - s * 0.7, y + s * 0.9)
   else
     lg.rectangle('fill', x - s, y - s * 0.4, s * 2, s * 0.8, 1, 1)
   end
@@ -1293,13 +1422,18 @@ end
 -- drawing: shop
 ---------------------------------------------------------------------------
 local SH = {px = 24, py = 92, pw = 312, rowH = 46}
-local function cardRect(i) return {x = 360 + (i - 1) * 148, y = 92, w = 136, h = 180} end
+local function cardRect(i) return {x = 360 + (i - 1) * 148, y = 92, w = 136, h = 190} end
 local function rowRect(i) return {x = SH.px, y = SH.py + (i - 1) * SH.rowH, w = SH.pw, h = SH.rowH - 6} end
 local function sellRect(i) local r = rowRect(i); return {x = r.x + r.w - 58, y = r.y + 9, w = 52, h = 22} end
 local function upRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 3, w = 20, h = 16} end
 local function downRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 21, w = 20, h = 16} end
-local REROLL_BTN = {x = 360, y = 286, w = 200, h = 40}
-local START_BTN = {x = 728, y = 286, w = 208, h = 40}
+local REROLL_BTN = {x = 360, y = 292, w = 200, h = 40}
+local SHOPUP_BTN = {x = 572, y = 292, w = 144, h = 40}
+local START_BTN = {x = 728, y = 292, w = 208, h = 40}
+local CATALOG_BTN = {x = W - 24 - 104, y = 12, w = 104, h = 30}
+local CAT = {x = 40, y = 30, w = 880, h = 480}
+local CAT_CLOSE = {x = CAT.x + CAT.w - 100, y = CAT.y + 16, w = 80, h = 28}
+local TIER_COL = {{COL.mid, COL.grid}, {COL.mintText, COL.mintSoft}, {COL.card, COL.ink}, {COL.card, COL.pink}}
 
 local function button(r, label, enabled, hover, primary)
   local rad = math.min(r.h / 2, 10)
@@ -1319,6 +1453,69 @@ local function button(r, label, enabled, hover, primary)
   text(label, r.x, r.y + (r.h - fontH(f)) / 2, f, 'center', r.w)
 end
 
+-- every unit the shop can roll, grouped by tier, with the odds for the current shop level
+local function drawCatalogue(mx, my)
+  setc(COL.ink, 0.35)
+  lg.rectangle('fill', 0, 0, W, H)
+  card(CAT.x, CAT.y, CAT.w, CAT.h, 14)
+  setc(COL.ink)
+  text('Catalogue', CAT.x + 20, CAT.y + 14, 'l')
+  setc(COL.dim)
+  text(('Every unit the shop can offer. Odds shown for shop level %d; upgrade the shop to unlock higher tiers.'):format(run.shopLevel),
+    CAT.x + 20, CAT.y + 46, 's')
+  button(CAT_CLOSE, 'Close', true, inRect(mx, my, CAT_CLOSE))
+
+  local odds, hovered = SHOP_ODDS[run.shopLevel], nil
+  local colW = (CAT.w - 40 - 3 * 14) / 4
+  for tier = 1, 4 do
+    local cx, cy = CAT.x + 20 + (tier - 1) * (colW + 14), CAT.y + 72
+    local avail = odds[tier] > 0
+    local label = 'Tier ' .. tier
+    pill(label, cx, cy, TIER_COL[tier][1], TIER_COL[tier][2])
+    setc(avail and COL.mid or COL.light)
+    text(('$%d each  ·  %d%% chance'):format(COST[tier], math.floor(odds[tier] * 100 + 0.5)), cx + pillW(label) + 8, cy + 2, 's')
+    for i, key in ipairs(UNIT_TIERS[tier]) do
+      local def = UNITS[key]
+      local r = {x = cx, y = cy + 24 + (i - 1) * 31, w = colW, h = 29}
+      if inRect(mx, my, r) then
+        hovered = def
+        setc(COL.hover)
+        lg.rectangle('fill', r.x - 4, r.y, r.w + 8, r.h, 6, 6)
+      end
+      marker(r.x + 11, r.y + 15, 7.5, def.classes[1])
+      setc(avail and COL.ink or COL.dim)
+      text(def.name, r.x + 28, r.y + 1, 'm')
+      setc(COL.dim)
+      text(classLine(def.classes), r.x + 28, r.y + 17, 's')
+      local m = findMember(key)
+      if m then
+        local s = 'Lv' .. memberLevel(m)
+        pill(s, r.x + r.w - pillW(s), r.y + 6, COL.mintText, COL.mintSoft)
+      end
+    end
+  end
+
+  local fy = CAT.y + CAT.h - 52
+  setc(COL.grid)
+  lg.setLineWidth(1)
+  lg.line(CAT.x + 20, fy - 8, CAT.x + CAT.w - 20, fy - 8)
+  if hovered then
+    setc(COL.ink)
+    text(hovered.name, CAT.x + 20, fy, 'm')
+    setc(COL.mid)
+    text(hovered.desc, CAT.x + 20, fy + 20, 's')
+    local stats = {'HP ' .. math.floor(hovered.hp * HP_SCALE)}
+    if hovered.dmg > 0 then stats[#stats + 1] = 'DMG ' .. hovered.dmg end
+    if hovered.ram then stats[#stats + 1] = 'RAM ' .. hovered.ram end
+    if not hovered.noAttack then stats[#stats + 1] = ('every %.1fs'):format(hovered.cd) end
+    setc(COL.dim)
+    text(table.concat(stats, '  ·  ') .. '  (at Lv1)', CAT.x + CAT.w - 420, fy + 2, 's', 'right', 400)
+  else
+    setc(COL.dim)
+    text('Hover a unit to see what it does. Units you own show their level.', CAT.x + 20, fy + 8, 's')
+  end
+end
+
 local function drawShop()
   local mx, my = getMouse()
   local l = run.level
@@ -1330,14 +1527,30 @@ local function drawShop()
   setc(COL.ink)
   text(ls, 24, 19, 'l')
   if isBoss(l) then pill('Boss', 24 + textW(ls, 'l') + 12, 26, COL.card, COL.pink) end
-  local gs = '$' .. run.gold
+  -- gold sits left of the catalogue button in the top-right corner
+  local gs, gx = '$' .. run.gold, CATALOG_BTN.x - 16
   setc(COL.dim)
-  text('Total gold', W - 224, 6, 's', 'right', 200)
+  text('Total gold', gx - 200, 6, 's', 'right', 200)
   setc(COL.ink)
-  text(gs, W - 224, 19, 'l', 'right', 200)
+  text(gs, gx - 200, 19, 'l', 'right', 200)
   if run.lastIncome then
     local s = '+' .. run.lastIncome
-    pill(s, W - 24 - textW(gs, 'l') - pillW(s) - 10, 26, COL.mintText, COL.mintSoft)
+    pill(s, gx - textW(gs, 'l') - pillW(s) - 10, 26, COL.mintText, COL.mintSoft)
+  end
+  button(CATALOG_BTN, 'Catalogue', true, inRect(mx, my, CATALOG_BTN))
+
+  -- shop level and the tier odds it gives
+  local hx = 300
+  setc(COL.dim)
+  text(('Shop level %d / %d  ·  tier odds'):format(run.shopLevel, SHOP_MAX), hx, 6, 's')
+  local odds = SHOP_ODDS[run.shopLevel]
+  for k = 1, 4 do
+    local s = ('T%d  %d%%'):format(k, math.floor(odds[k] * 100 + 0.5))
+    if odds[k] > 0 then
+      hx = hx + pill(s, hx, 24, TIER_COL[k][1], TIER_COL[k][2]) + 6
+    else
+      hx = hx + pill(s, hx, 24, COL.light, COL.hover) + 6
+    end
   end
 
   -- party
@@ -1388,8 +1601,7 @@ local function drawShop()
         setc(COL.ink)
         lg.rectangle('line', r.x, r.y, r.w, r.h, 10, 10)
       end
-      setc(COL.dim)
-      text('Tier ' .. def.tier, r.x + 10, r.y + 10, 's')
+      pill('Tier ' .. def.tier, r.x + 8, r.y + 8, TIER_COL[def.tier][1], TIER_COL[def.tier][2])
       local cs = '$' .. cost
       pill(cs, r.x + r.w - 10 - pillW(cs), r.y + 8, can and COL.card or COL.dim, can and COL.pink or COL.grid)
       marker(r.x + r.w / 2, r.y + 46, 12, def.classes[1])
@@ -1402,7 +1614,7 @@ local function drawShop()
       local status, fg, bg = 'New', COL.mid, COL.grid
       if owned then status, fg, bg = ('Owned · Lv%d'):format(memberLevel(owned)), COL.mintText, COL.mintSoft
       elseif #run.party >= maxUnits(l) then status = 'Party full' end
-      pill(status, r.x + (r.w - pillW(status)) / 2, r.y + r.h - 26, fg, bg)
+      pill(status, r.x + (r.w - pillW(status)) / 2, r.y + r.h - 24, fg, bg)
     else
       setc(COL.line)
       lg.setLineWidth(1)
@@ -1413,6 +1625,9 @@ local function drawShop()
   end
 
   button(REROLL_BTN, 'Reroll  ·  $' .. REROLL_COST, run.gold >= REROLL_COST, inRect(mx, my, REROLL_BTN))
+  local maxed = run.shopLevel >= SHOP_MAX
+  local upCost = SHOP_UP_COST[run.shopLevel]
+  button(SHOPUP_BTN, maxed and 'Shop maxed' or ('Upgrade  ·  $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
   button(START_BTN, 'Start level ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
 
   -- class bonuses as a horizontal bar chart
@@ -1422,7 +1637,7 @@ local function drawShop()
   local counts = classCounts()
   for i, cl in ipairs(CLASS_ORDER) do
     local c = CLASSES[cl]
-    local y = 372 + (i - 1) * 16.5
+    local y = 372 + (i - 1) * 15.2
     local n, tier = counts[cl] or 0, classTier(counts, cl)
     setc(c.color, n > 0 and 1 or 0.35)
     glyph(cl, 380, y + 7, 3.5)
@@ -1457,7 +1672,9 @@ local function drawShop()
   end
 
   setc(COL.dim)
-  text('Space: start  ·  R: reroll  ·  right-click: sell', SH.px, H - 26, 's')
+  text('Space: start  ·  R: reroll  ·  U: upgrade  ·  C: catalogue', SH.px, H - 26, 's')
+
+  if run.catalog then drawCatalogue(mx, my) end
 end
 
 ---------------------------------------------------------------------------
@@ -1492,7 +1709,7 @@ local function drawMenu()
   setc(COL.mid)
   text('A snake auto-battler: you steer, your heroes do the fighting.', 212, 160, 'm')
   setc(COL.dim)
-  text('25 levels  ·  18 units  ·  9 classes', 212, 182, 's')
+  text('25 levels  ·  34 units  ·  10 classes  ·  5 shop levels', 212, 182, 's')
   button(MENU_BTN, 'Start run', true, inRect(mx, my, MENU_BTN), true)
   setc(COL.dim)
   text('or press Space', 426, 226, 's')
@@ -1560,6 +1777,16 @@ local function reroll()
   play('click')
 end
 
+local function upgradeShop()
+  if run.shopLevel >= SHOP_MAX then play('error'); shopMsg('The shop is already max level', COL.red); return end
+  local cost = SHOP_UP_COST[run.shopLevel]
+  if run.gold < cost then play('error'); shopMsg('Upgrading the shop costs $' .. cost, COL.red); return end
+  run.gold = run.gold - cost
+  run.shopLevel = run.shopLevel + 1
+  play('buy')
+  shopMsg('Shop upgraded to level ' .. run.shopLevel .. ' - better odds from the next roll', COL.green)
+end
+
 local function tryStart()
   if #run.party == 0 then play('error'); shopMsg('Buy a unit first!', COL.red); return end
   play('click')
@@ -1571,8 +1798,12 @@ function love.keypressed(key)
     if key == 'space' or key == 'return' then newRun()
     elseif key == 'escape' then love.event.quit() end
   elseif state == 'shop' then
-    if key == 'space' or key == 'return' then tryStart()
+    if run.catalog then
+      if key == 'escape' or key == 'c' then run.catalog = false; play('click') end
+    elseif key == 'space' or key == 'return' then tryStart()
     elseif key == 'r' then reroll()
+    elseif key == 'u' then upgradeShop()
+    elseif key == 'c' then run.catalog = true; play('click')
     elseif key == 'escape' then state = 'menu' end
   elseif state == 'arena' then
     if key == 'p' or key == 'escape' then paused = not paused
@@ -1587,6 +1818,12 @@ function love.mousepressed(x, y, b)
   if state == 'menu' then
     if b == 1 then play('click'); newRun() end
   elseif state == 'shop' then
+    if run.catalog then
+      if inRect(mx, my, CAT_CLOSE) or not inRect(mx, my, CAT) then run.catalog = false; play('click') end
+      return
+    end
+    if inRect(mx, my, CATALOG_BTN) then run.catalog = true; play('click'); return end
+    if inRect(mx, my, SHOPUP_BTN) then upgradeShop(); return end
     for i = 1, 4 do
       if inRect(mx, my, cardRect(i)) then buyOffer(i); return end
     end

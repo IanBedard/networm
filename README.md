@@ -2,6 +2,10 @@
 
 A snake auto-battler made with [LÖVE](https://love2d.org) 11. Steer a line of heroes that fight on their own, recruit units between levels, stack copies to rank them up, and combine classes for set bonuses. Survive 25 levels, with a boss every 6.
 
+- 34 units across 4 tiers and 10 classes.
+- The shop has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
+- Colliding with an enemy damages both sides. Rammers take half the collision damage and hit much harder.
+
 **Play in the browser:** https://ianbedard.github.io/plotline/
 
 ## Controls
@@ -11,6 +15,8 @@ A snake auto-battler made with [LÖVE](https://love2d.org) 11. Steer a line of h
 | A / D or Left / Right | Steer |
 | Space | Start a run / start the next level |
 | R | Reroll the shop |
+| U | Upgrade the shop |
+| C | Open / close the catalogue |
 | Right-click a unit | Sell it |
 | P or Esc | Pause |
 
