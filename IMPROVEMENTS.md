@@ -79,3 +79,17 @@ hit-stop (0.1 s / 0.18 s) so the moment registers.
 **Checked.** Test: a 60% hit flashes harder than a 5% hit; a lethal hit starts a hit-stop that freezes
 the simulation and then resumes. Screenshot of a level-9 fight at the moment the head is hit shows the
 red edge pulse and the head's entry flashing in the module table. QA bot runs complete without errors.
+
+## Cycle 6: boss fights about the boss
+
+**Problem.** The boss summoned 3-5 minions on about a third of its attacks with no limit. Long fights
+snowballed into swarms: a QA run ended with the boss dead and 15 of its minions still alive, and boss
+levels took the bot 130-200 s against 30-60 s for normal levels.
+
+**Change.** Boss summons are tagged as its escort; while 6 or more escort minions are alive the boss
+picks a bullet ring or a charge instead of summoning again.
+
+**Checked.** Test: with 6 escort minions alive, 80 forced ability rolls add none; with the escort gone
+the boss summons again. QA bot (4 runs each): seed 1 average level 7.8 -> 10.5, seed 2 unchanged at 7.8
+(its runs die before the boss gets long); one run reached level 15. Also fixed a flaky test that
+depended on which random unit it bought.

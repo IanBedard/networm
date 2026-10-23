@@ -1039,6 +1039,7 @@ local function repulse(e)
 end
 
 local RING_WARN = 0.6
+local BOSS_ESCORT_MAX = 6
 
 -- true when bullet k of a ring falls inside its safe gap
 local function inRingGap(ring, k)
@@ -1062,6 +1063,12 @@ local function bossAI(e, nx, ny, dt)
   local enraged = e.hp < e.maxhp * 0.5
   e.bt = enraged and 2.4 or 3.4
   local ab = rand(1, 3)
+  if ab == 2 then
+    -- only summon while its escort is small; otherwise boss fights snowball into minion grinds
+    local escort = 0
+    for _, o in ipairs(arena.enemies) do if o.minion and not o.dead then escort = escort + 1 end end
+    if escort >= BOSS_ESCORT_MAX then ab = rand(0, 1) * 2 + 1 end
+  end
   if ab == 1 then
     -- bullet ring: telegraphed first, and always leaves a gap the worm can slip through
     local n = enraged and 24 or 16
@@ -1069,7 +1076,7 @@ local function bossAI(e, nx, ny, dt)
   elseif ab == 2 then
     for k = 1, enraged and 5 or 3 do
       local a = rr(0, 6.28)
-      spawnEnemy(choice({'seeker', 'mini', 'seeker'}), e.x + math.cos(a) * 45, e.y + math.sin(a) * 45)
+      spawnEnemy(choice({'seeker', 'mini', 'seeker'}), e.x + math.cos(a) * 45, e.y + math.sin(a) * 45).minion = true
     end
     burst(e.x, e.y, e.d.color, 20, 200)
   else
