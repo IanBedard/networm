@@ -6,6 +6,7 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 - Merchants make money: enemies can drop coins, and merchants add interest, gold per level, or gold per kill.
 - The darkmarket (shop) has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
 - Colliding with an enemy damages both sides. Rammers take half the collision damage and hit much harder.
+- From level 2 on, a security update types out at the start of most levels as the kernel hardens its defences.
 - Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the worm, and snipers with laser sights.
 - Terminal look: phosphor-green text in Roboto Mono, CRT scanlines, a dmesg-style boot screen.
 

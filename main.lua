@@ -1489,20 +1489,62 @@ local BRIEFING = {
   '> red shapes are hostile processes. ramming one hurts you both.',
   '> kill every wave to escalate. spend the loot at the darkmarket.',
 }
-local function drawBriefing()
+-- from level 2 on, the kernel's defences announce what they just upgraded
+local SECURITY = {
+  [2] = 'ids: anomaly detected in /dev/arena0. monitoring enabled.',
+  [3] = 'firewall: turret processes deployed. they shoot back now.',
+  [4] = 'edr: kamikaze processes armed. they detonate on contact.',
+  [5] = 'edr: charger processes now dash at known worm signatures.',
+  [6] = 'ANTIVIRUS v1 online. scanning memory for worm.ko...',
+  [7] = 'kernel: repulsor daemons pulse to shove the worm off course.',
+  [8] = 'hardening: armoured tank processes deployed.',
+  [9] = 'audit: more hostile processes in every wave from now on.',
+  [10] = 'sandbox: splitter processes fork in two when killed.',
+  [11] = 'honeypot: laser-sighted snipers are watching the worm.',
+  [12] = 'ANTIVIRUS v2 online. signatures updated.',
+  [13] = 'siem: every wave now correlated. expect larger swarms.',
+  [14] = 'patch tuesday: tanks, chargers and turrets doubled.',
+  [16] = 'zero-trust mode: kamikazes, repulsors and snipers doubled.',
+  [18] = 'ANTIVIRUS v3 online. heuristics enabled.',
+  [20] = 'soc on high alert: analysts hunting the worm manually.',
+  [22] = 'secure boot: integrity checks on every process.',
+  [24] = 'ANTIVIRUS v4 online. last line before the core.',
+  [25] = 'KERNEL SELF-DEFENSE ENGAGED. this is the final boss.',
+}
+local function securityLog(l)
+  if l < 2 or not (SECURITY[l] or l % 2 == 0) then return nil end
+  local lines = {('[!] security update - threat level %02d, process integrity x%.1f'):format(l, hpScale(l))}
+  if SECURITY[l] then lines[2] = '> ' .. SECURITY[l] end
+  return lines
+end
+
+-- a log that types itself out in the bottom-left corner of the arena, then fades
+local function drawTypedLog(lines, duration, color, lastColor)
   local t = arena.t
-  local alpha = math.min(1, (24 - t) / 2)
+  local alpha = math.min(1, (duration - t) / 1.5)
   if alpha <= 0 then return end
-  local x, y = AR.x1 + 64, AR.y2 - 18 - #BRIEFING * 16
-  setc(COL.bg, 0.75 * alpha)
-  lg.rectangle('fill', x - 8, y - 8, 520, #BRIEFING * 16 + 12)
+  local x, y = AR.x1 + 64, AR.y2 - 18 - #lines * 16
+  local w = 0
+  for _, line in ipairs(lines) do w = math.max(w, textW(line, 's')) end
+  setc(COL.bg, 0.8 * alpha)
+  lg.rectangle('fill', x - 8, y - 8, w + 16, #lines * 16 + 12)
+  setc(color, 0.6 * alpha)
+  lg.rectangle('fill', x - 8, y - 8, 2, #lines * 16 + 12)
   local chars = math.floor(t * 38)
-  for i, line in ipairs(BRIEFING) do
+  for i, line in ipairs(lines) do
     if chars <= 0 then break end
-    local shown = line:sub(1, chars)
+    setc(i == #lines and lastColor or color, alpha)
+    text(line:sub(1, chars), x, y + (i - 1) * 16, 's')
     chars = chars - #line - 12
-    setc(i == #BRIEFING and COL.ink or COL.green, alpha)
-    text(shown, x, y + (i - 1) * 16, 's')
+  end
+end
+
+local function drawBriefing()
+  if run.level == 1 then
+    drawTypedLog(BRIEFING, 24, COL.green, COL.ink)
+  else
+    local lines = securityLog(run.level)
+    if lines then drawTypedLog(lines, 10, COL.red, COL.gold) end
   end
 end
 
@@ -1630,7 +1672,7 @@ local function drawArena()
   lg.setScissor()
   lg.pop()
 
-  if run.level == 1 then drawBriefing() end
+  drawBriefing()
 
   -- HUD
   setc(COL.dim)
