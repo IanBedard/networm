@@ -2523,7 +2523,7 @@ end
 ---------------------------------------------------------------------------
 local MUSIC_FILE = 'music/memory.mp3'
 local MUSIC_LOOP = {start = 5.0773, stop = 211.2837, fade = 0.2}
-local MUSIC_VOLUME = 0.35
+local MUSIC_VOLUME = 0.15   -- kept low so it sits under the sound effects
 local music = {on = true}
 
 -- equal-power crossfade so the samples just before `stop` flow into those just before `start`

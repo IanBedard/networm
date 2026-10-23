@@ -94,7 +94,7 @@
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } h1::after { animation: none; } }
 </style>
 
-<script src="game-data.js?v=6fc8a042"></script>
+<script src="game-data.js?v=ac8afa7f"></script>
 
 <div class="wrap">
   <div class="prompt"><b>root@networm</b>:~$ sudo insmod ./worm.ko</div>
@@ -104,7 +104,7 @@
     <p>You are the operator. Inject the worm, steer it through the kernel, and let its modules kill every process in the way. Survive 25 levels to get root.</p>
   </header>
 
-  <div class="stage" id="stage" data-music="music.mp3?v=6fc8a042">
+  <div class="stage" id="stage" data-music="music.mp3?v=ac8afa7f">
     <canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
     <div class="overlay" id="overlay">
       <strong id="status">booting networm…</strong>
@@ -179,7 +179,7 @@
   // between two points 151 bars apart (found by analysing the track; the desktop build uses the same
   // ones), with a short equal-power crossfade baked into the seam so the jump back is seamless.
   var MUSIC_LOOP = {start: 5.0773, stop: 211.2837, fade: 0.2};
-  var MUSIC_VOLUME = 0.35;
+  var MUSIC_VOLUME = 0.15;   // kept low so it sits under the sound effects
   var musicCtx = null, musicGain = null, musicOn = true;
   var musicState = document.getElementById('musicState');
   function startMusic() {
@@ -298,5 +298,5 @@
     Love(Module);
   }
 </script>
-<script src="game.js?v=6fc8a042"></script>
-<script async src="love.js?v=6fc8a042" onload="applicationLoad()"></script>
+<script src="game.js?v=ac8afa7f"></script>
+<script async src="love.js?v=ac8afa7f" onload="applicationLoad()"></script>

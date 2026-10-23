@@ -162,5 +162,5 @@ served as its own file, not inside the base64 game package). M toggles the music
 **Checked.** Streaming through the game's own code across the seam: the sample step at the join is 0.055
 against a typical 0.041 (p99 0.28) for this track, i.e. indistinguishable from normal audio; identical
 numbers on the web build's decoded buffer. Desktop load 0.64 s, streaming under 1 ms CPU per second of
-music. Web: after the first click the source plays with loop 5.0773-211.2837 s at 35% volume. I could
+music. Web: after the first click the source plays with loop 5.0773-211.2837 s at 35% volume (later lowered to 15% on request). I could
 not listen to the result, so the "seamless" verdict rests on these measurements.
