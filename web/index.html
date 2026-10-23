@@ -86,14 +86,12 @@
   .note strong { font-weight: 500; color: var(--amber); }
   .credit { margin: 0; font-size: 11px; color: var(--faint); }
   .credit a { color: var(--muted); }
-  #musicState { color: var(--phosphor); }
 
   @media (max-width: 640px) { button { margin-left: 0; } }
   @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } h1::after { animation: none; } }
 </style>
 
 <script src="game-data.js?v=6d269130"></script>
-<audio id="music" src="music.mp3?v=6d269130" loop preload="auto"></audio>
 
 <div class="wrap">
   <div class="prompt"><b>root@networm</b>:~$ sudo insmod ./worm.ko</div>
@@ -124,8 +122,6 @@
     <span><kbd>C</kbd> catalogue</span>
     <span class="sep">|</span>
     <span><kbd>P</kbd> pause</span>
-    <span class="sep">|</span>
-    <span><kbd>M</kbd> music <b id="musicState">on</b></span>
     <button type="button" id="fullscreen">[F] fullscreen</button>
   </div>
 
@@ -135,7 +131,6 @@
     <div class="note"><b>step 3: escalate</b><span>Between levels, spend <strong>gold</strong> at the darkmarket. 3 copies of a module rank it to Lv2, 9 to Lv3. Upgrade the market for rarer tiers, stack classes for bonuses, and run Merchants to farm coins.</span></div>
   </div>
 
-  <p class="credit">music: <a href="https://www.newgrounds.com/audio/listen/1628238" target="_blank" rel="noopener">Memory</a> by Sunnexo (from Netpunk), licensed CC BY-NC-SA 3.0</p>
 </div>
 
 <script>
@@ -159,35 +154,6 @@
     if (e.key === 'f' || e.key === 'F') document.getElementById('fullscreen').click();
   });
 
-  // background music: browsers only allow sound after the first click or key press
-  var music = document.getElementById('music');
-  var musicState = document.getElementById('musicState');
-  var musicOn = true, musicStarted = false;
-  music.volume = 0.35;
-  function syncMusic() {
-    musicState.textContent = musicOn ? 'on' : 'off';
-    if (musicOn && musicStarted) {
-      var p = music.play();
-      if (p && p.catch) p.catch(function () {});
-    } else {
-      music.pause();
-    }
-  }
-  function startMusic() {
-    if (musicStarted) return;
-    musicStarted = true;
-    syncMusic();
-  }
-  window.addEventListener('pointerdown', startMusic);
-  window.addEventListener('keydown', function (e) {
-    if (e.key === 'm' || e.key === 'M') {
-      musicOn = !musicOn;
-      musicStarted = true;
-      syncMusic();
-    } else {
-      startMusic();
-    }
-  });
 
   document.getElementById('fullscreen').addEventListener('click', function () {
     var el = document.getElementById('stage');

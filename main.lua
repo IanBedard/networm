@@ -154,6 +154,63 @@ CLASSES.merchant = {name = 'Merchant', color = hex('ffc777'), tiers = {2, 4}, de
 local CLASS_ORDER = {'warrior', 'ranger', 'mage', 'rogue', 'healer', 'nuker', 'conjurer', 'voider', 'enforcer', 'rammer', 'merchant'}
 
 ---------------------------------------------------------------------------
+-- perks: run-wide upgrades bought from the market's perk slot (max 3 installed)
+---------------------------------------------------------------------------
+local PERK_MAX = 3
+local PERK_COST = {5, 8, 12, 16}
+local PERK_RARITY = {'common', 'rare', 'epic', 'legendary'}
+local PERK_COL = {COL.mid, COL.cyan, COL.purple, COL.gold}
+local PERK_ODDS = {   -- by market level
+  {0.8, 0.2, 0, 0},
+  {0.65, 0.3, 0.05, 0},
+  {0.5, 0.35, 0.13, 0.02},
+  {0.4, 0.35, 0.2, 0.05},
+  {0.3, 0.35, 0.25, 0.1},
+}
+-- `syn` names the class that makes a perk stronger and how
+local PERKS = {
+  ricochet = {name = 'Ricochet Protocol', rarity = 1, desc = 'Hitting a wall fires 6 bullets back into the arena.',
+    syn = {'ranger', '+1 bullet per Marksman'}},
+  firmware = {name = 'Thick Firmware', rarity = 1, desc = 'All modules +20% max HP.',
+    syn = {'enforcer', 'Bruisers get +20% more'}},
+  overclock = {name = 'Overclock', rarity = 1, desc = 'All modules attack 15% faster.',
+    syn = {'mage', 'Arcanists also deal +15% damage'}},
+  magnet = {name = 'Coin Magnet', rarity = 1, desc = 'Coins fly to the worm from afar. +1 max interest.',
+    syn = {'merchant', '+4% coin drops per Merchant'}},
+  spiked = {name = 'Spiked Hull', rarity = 2, desc = 'Ram damage x2.',
+    syn = {'rammer', 'Rammers take 25% less collision damage'}},
+  breach = {name = 'Firewall Breach', rarity = 2, desc = 'Killed processes explode, hitting enemies nearby.',
+    syn = {'nuker', 'Demolishers make explosions 50% larger'}},
+  selfrepair = {name = 'Self-Repair', rarity = 2, desc = 'Modules regenerate 1% max HP per second.',
+    syn = {'healer', 'Sages double the regeneration'}},
+  packetstorm = {name = 'Packet Storm', rarity = 2, desc = 'Every 5 s the head fires a ring of 10 bullets.',
+    syn = {'rogue', '+2 bullets per Cutthroat'}},
+  rootaccess = {name = 'Root Access', rarity = 3, desc = 'The first module to die each level is restored at 50% HP.',
+    syn = {'healer', 'Sages restore it at 100%'}},
+  forkbomb = {name = 'Fork Bomb', rarity = 3, desc = 'Every 8 s a fuse-imp launches from the tail.',
+    syn = {'conjurer', 'Artificers launch one every 5 s'}},
+  virulence = {name = 'Virulence', rarity = 3, desc = 'A cursed enemy\'s curse jumps to 2 others when it dies.',
+    syn = {'voider', 'Hexers make it jump to 4'}},
+  zeroday = {name = 'Zero-Day Exploit', rarity = 4, desc = 'Every module gets +10% crit chance.',
+    syn = {'rogue', 'Cutthroat crits hit x4 instead of x3'}},
+  polymorph = {name = 'Polymorphic Code', rarity = 4, desc = 'The worm gets +1 module slot (up to 9).'},
+}
+local PERK_ORDER = {'ricochet', 'firmware', 'overclock', 'magnet', 'spiked', 'breach', 'selfrepair', 'packetstorm',
+                    'rootaccess', 'forkbomb', 'virulence', 'zeroday', 'polymorph'}
+for _, k in ipairs(PERK_ORDER) do PERKS[k].key = k end
+
+local function hasPerk(key)
+  if not run then return false end
+  for _, k in ipairs(run.perks) do if k == key then return true end end
+  return false
+end
+-- perk damage keeps pace with the levels
+local function perkDmg(base) return base * (1 + 0.25 * (run.level - 1)) end
+-- how many modules of a class the worm fielded this level (perk synergies)
+local function classN(cl) return arena and arena.counts and arena.counts[cl] or 0 end
+local onEnemyKilled   -- perk kill effects; assigned once the combat helpers exist
+
+---------------------------------------------------------------------------
 -- combat helpers (used by unit attacks)
 ---------------------------------------------------------------------------
 local spawnEnemy
@@ -208,12 +265,13 @@ local function killEnemy(e, src)
       m.kx, m.ky, m.spawnT = rr(-160, 160), rr(-160, 160), 0.2
     end
   end
+  if onEnemyKilled then onEnemyKilled(e, src) end
 end
 
 local function damageEnemy(e, dmg, src, opt)
   if e.dead then return end
   local crit = false
-  if src and src.crit > 0 and not (opt and opt.nocrit) and rand() < src.crit then dmg = dmg * 3; crit = true end
+  if src and src.crit > 0 and not (opt and opt.nocrit) and rand() < src.crit then dmg = dmg * (src.critMult or 3); crit = true end
   e.hp = e.hp - dmg
   e.flash = 0.1
   addText(e.x + rr(-6, 6), e.y - e.r - 4, tostring(math.floor(dmg + 0.5)), crit and COL.gold or (opt and opt.color) or COL.mid, crit)
@@ -246,6 +304,24 @@ local function blast(x, y, r, dmg, src, o)
     knock = o.knock, age = 0, fired = false, faint = o.faint, nocrit = o.nocrit, maxdelay = o.delay or 0,
     visual = o.visual,  -- enemy effects: drawn like a blast but never hurt enemies
   }
+end
+
+onEnemyKilled = function(e, src)
+  if hasPerk('breach') then
+    local r = 40 * (classN('nuker') > 0 and 1.5 or 1)
+    blast(e.x, e.y, r, perkDmg(12), src, {color = PERK_COL[2]})
+  end
+  if hasPerk('virulence') and #e.dots > 0 then
+    -- the curse jumps to the nearest living enemies
+    local jumps, hit = classN('voider') > 0 and 4 or 2, {[e] = true}
+    for j = 1, jumps do
+      local n = nearestEnemy(e.x, e.y, 220, hit)
+      if not n then break end
+      hit[n] = true
+      for _, d in ipairs(e.dots) do n.dots[#n.dots + 1] = {dps = d.dps, t = 3, tick = 0.3} end
+      burst(n.x, n.y, COL.purple, 5, 80, 2)
+    end
+  end
 end
 
 local function summon(kind, x, y, src, o)
@@ -516,7 +592,11 @@ end
 ---------------------------------------------------------------------------
 -- run / party
 ---------------------------------------------------------------------------
-local function maxUnits(l) return math.min(8, 3 + math.floor((l - 1) / 3)) end
+local function maxUnits(l)
+  local n = math.min(8, 3 + math.floor((l - 1) / 3))
+  if hasPerk('polymorph') then n = n + 1 end
+  return n
+end
 local function nextSlotLevel(l)
   for k = l + 1, MAX_LEVEL do
     if maxUnits(k) > maxUnits(l) then return k end
@@ -563,14 +643,36 @@ local function rollOffers()
     run.offers[i] = choice(UNIT_TIERS[tier])
   end
 end
+-- the perk slot: rarity rolled from the market level, never a perk already installed
+local function rollPerk()
+  local o, r, rarity = PERK_ODDS[run.shopLevel], rand(), 1
+  for k = 1, 4 do
+    if r < o[k] then rarity = k; break end
+    r = r - o[k]
+  end
+  local pool, any = {}, {}
+  for _, k in ipairs(PERK_ORDER) do
+    if not hasPerk(k) then
+      any[#any + 1] = k
+      if PERKS[k].rarity == rarity then pool[#pool + 1] = k end
+    end
+  end
+  run.perkOffer = choice(#pool > 0 and pool or any)
+end
+-- a fresh market visit: new offers, and the reroll price starts over
+local function openMarket()
+  run.rerollCost = REROLL_COST
+  rollOffers()
+  rollPerk()
+end
 local function findMember(key)
   for i, m in ipairs(run.party) do if m.key == key then return m, i end end
 end
 local function shopMsg(s, c) run.msg = {s = s, c = c or COL.text, t = 2} end
 
 local function newRun()
-  run = {gold = 4, level = 1, shopLevel = 1, party = {}, offers = {}}
-  rollOffers()
+  run = {gold = 4, level = 1, shopLevel = 1, party = {}, offers = {}, perks = {}}
+  openMarket()
   state = 'shop'
 end
 
@@ -607,6 +709,30 @@ local function sellMember(i)
   table.remove(run.party, i)
   play('click')
   shopMsg('Sold ' .. m.def.name .. ' for $' .. sellValue(m))
+end
+
+local function buyPerk()
+  local key = run.perkOffer
+  if not key then return end
+  local p = PERKS[key]
+  local cost = PERK_COST[p.rarity]
+  if #run.perks >= PERK_MAX then play('error'); shopMsg('Perk slots full - right-click a perk to remove it', COL.red); return end
+  if run.gold < cost then play('error'); shopMsg(p.name .. ' costs $' .. cost, COL.red); return end
+  run.gold = run.gold - cost
+  run.perks[#run.perks + 1] = key
+  run.perkOffer = false
+  play('buy')
+  shopMsg('Installed ' .. p.name, PERK_COL[p.rarity])
+end
+
+local function sellPerk(i)
+  local key = run.perks[i]
+  if not key then return end
+  local refund = math.floor(PERK_COST[PERKS[key].rarity] / 2)
+  table.remove(run.perks, i)
+  run.gold = run.gold + refund
+  play('click')
+  shopMsg('Removed ' .. PERKS[key].name .. ' (+$' .. refund .. ')')
 end
 
 local function moveMember(i, dir)
@@ -721,6 +847,11 @@ local function buildUnit(m, counts)
   u.contactTaken = rammer and ({0.5, 0.3, 0.15})[t('rammer') + 1] or 1
   u.ramStun, u.ramSplash = d.ramStun, d.ramSplash
   u.coinOnKill = d.coinOnKill and d.coinOnKill[lv] or 0
+  -- perks
+  if hasPerk('firmware') then u.maxhp = u.maxhp * (has('enforcer') and 1.4 or 1.2); u.hp = u.maxhp end
+  if hasPerk('overclock') then u.aspd = u.aspd * 1.15; if has('mage') then u.dmg = u.dmg * 1.15 end end
+  if hasPerk('spiked') then u.ram = u.ram * 2; if rammer then u.contactTaken = u.contactTaken * 0.75 end end
+  if hasPerk('zeroday') then u.crit = u.crit + 0.1; if has('rogue') then u.critMult = 4 end end
   return u
 end
 
@@ -737,7 +868,9 @@ local function startLevel()
   for x = arena.head.x - 200, arena.head.x, 3 do arena.trail[#arena.trail + 1] = {x = x, y = arena.head.y} end
   local counts = classCounts()
   for _, m in ipairs(run.party) do arena.units[#arena.units + 1] = buildUnit(m, counts) end
+  arena.counts = counts
   arena.coinChance = ({0, 0.06, 0.15})[classTier(counts, 'merchant') + 1]
+    + (hasPerk('magnet') and 0.04 * (counts.merchant or 0) or 0)
   banner('LEVEL ' .. l, arena.boss and 'antivirus daemon detected!' or nil)
   paused = false
   state = 'arena'
@@ -754,13 +887,14 @@ local function finishLevel()
     if d.interestCap then cap = cap + d.interestCap[lv] end
   end
   if classTier(classCounts(), 'merchant') >= 2 then cap = cap + 2 end
+  if hasPerk('magnet') then cap = cap + 1 end
   local interest = math.min(cap, math.floor(run.gold / 5))
   local bonus = arena.boss and 4 or 0
   local income = 4 + interest + bonus + extra
   run.gold = run.gold + income
   run.lastIncome = income
   run.level = run.level + 1
-  rollOffers()
+  openMarket()
   local parts = {'4 base', '+' .. interest .. ' interest'}
   if extra > 0 then parts[#parts + 1] = '+' .. extra .. ' merchants' end
   if bonus > 0 then parts[#parts + 1] = '+' .. bonus .. ' boss' end
@@ -782,6 +916,14 @@ local function hurtUnit(u, dmg, force)
   local frac = math.min(1, dmg / u.maxhp)
   shake(1 + 7 * frac)
   arena.hurtFlash = math.min(1, arena.hurtFlash + 0.2 + frac)
+  if u.hp <= 0 and hasPerk('rootaccess') and not arena.rootUsed then
+    -- Root Access: the first module that would die this level is restored instead
+    arena.rootUsed = true
+    u.hp = u.maxhp * (classN('healer') > 0 and 1 or 0.5)
+    burst(u.x, u.y, PERK_COL[3], 20, 200)
+    addText(u.x, u.y - 24, u.def.name .. ' [restored]', COL.green, true)
+    return
+  end
   if u.hp <= 0 then
     u.hp, u.dead = 0, true
     burst(u.x, u.y, u.color, 24, 240)
@@ -842,6 +984,13 @@ local function updateWorm(dt)
     play('wall')
     burst(h.x, h.y, COL.light, 8, 120, 2)
     hurtUnit(u, u.maxhp * 0.1, true)
+    if hasPerk('ricochet') then
+      -- the bounce sprays a fan of bullets back into the arena
+      local n = 6 + classN('ranger')
+      for k = 1, n do
+        shootFrom(h.x, h.y, h.a + (k - (n + 1) / 2) * 0.22, {src = u, dmg = perkDmg(14), speed = 420, color = PERK_COL[1], shape = 'arrow'})
+      end
+    end
   end
   local tr = arena.trail
   local last = tr[#tr]
@@ -1225,6 +1374,34 @@ local function updateEnemies(dt)
   for i = #es, 1, -1 do if es[i].dead then table.remove(es, i) end end
 end
 
+-- timed perks: regeneration, the head's bullet ring and the tail's fuse-imps
+local function updatePerks(dt)
+  local head, tail = arena.alive[1], arena.alive[#arena.alive]
+  if not head then return end
+  if hasPerk('selfrepair') then
+    local rate = 0.01 * (classN('healer') > 0 and 2 or 1)
+    for _, u in ipairs(arena.alive) do u.hp = math.min(u.maxhp, u.hp + u.maxhp * rate * dt) end
+  end
+  if hasPerk('packetstorm') then
+    arena.stormT = (arena.stormT or 5) - dt
+    if arena.stormT <= 0 then
+      arena.stormT = 5
+      local n, off = 10 + 2 * classN('rogue'), rr(0, 6.28)
+      for k = 1, n do
+        shootFrom(head.x, head.y, off + k / n * math.pi * 2, {src = head, dmg = perkDmg(10), speed = 360, color = PERK_COL[2]})
+      end
+      play('shoot', 0.7)
+    end
+  end
+  if hasPerk('forkbomb') then
+    arena.forkT = (arena.forkT or 3) - dt
+    if arena.forkT <= 0 then
+      arena.forkT = classN('conjurer') > 0 and 5 or 8
+      summon('bomber', tail.x, tail.y, tail, {life = 5, dmg = perkDmg(30)})
+    end
+  end
+end
+
 local function updateArena(dt)
   arena.hurtFlash = math.max(0, arena.hurtFlash - dt * 2.5)
   -- hit-stop: freeze the simulation for a beat when something important dies
@@ -1238,6 +1415,7 @@ local function updateArena(dt)
 
   if #arena.alive > 0 then updateWorm(dt) end
   updateUnits(dt)
+  updatePerks(dt)
   updateProjectiles(dt)
   updateAreas(dt)
   updateSummons(dt)
@@ -1248,7 +1426,7 @@ local function updateArena(dt)
   for i = #arena.coins, 1, -1 do
     local c = arena.coins[i]
     c.life = c.life - dt
-    if head and dist(c.x, c.y, head.x, head.y) < 90 then
+    if head and dist(c.x, c.y, head.x, head.y) < (hasPerk('magnet') and 260 or 90) then
       local nx, ny = norm(head.x - c.x, head.y - c.y)
       c.x, c.y = c.x + nx * 240 * dt, c.y + ny * 240 * dt
     end
@@ -1832,18 +2010,45 @@ end
 ---------------------------------------------------------------------------
 -- drawing: shop
 ---------------------------------------------------------------------------
-local SH = {px = 24, py = 92, pw = 312, rowH = 46}
+local SH = {px = 24, py = 92, pw = 312, rowH = 41}
 local function cardRect(i) return {x = 360 + (i - 1) * 148, y = 92, w = 136, h = 190} end
 local function rowRect(i) return {x = SH.px, y = SH.py + (i - 1) * SH.rowH, w = SH.pw, h = SH.rowH - 6} end
 local function sellRect(i) local r = rowRect(i); return {x = r.x + r.w - 58, y = r.y + 9, w = 52, h = 22} end
-local function upRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 3, w = 20, h = 16} end
-local function downRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 21, w = 20, h = 16} end
+local function upRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 1, w = 20, h = 15} end
+local function downRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 19, w = 20, h = 15} end
 local REROLL_BTN = {x = 360, y = 292, w = 200, h = 40}
 local SHOPUP_BTN = {x = 568, y = 292, w = 152, h = 40}
 local START_BTN = {x = 728, y = 292, w = 208, h = 40}
 local CATALOG_BTN = {x = W - 24 - 118, y = 12, w = 118, h = 30}
 local CAT = {x = 40, y = 30, w = 880, h = 480}
 local CAT_CLOSE = {x = CAT.x + CAT.w - 120, y = CAT.y + 16, w = 100, h = 28}
+local PERK_CARD = {x = 652, y = 340, w = 284, h = 184}
+local function chipRect(i) return {x = SH.px + (i - 1) * 106, y = 482, w = 100, h = 20} end
+
+-- small bordered info box next to the mouse; lines = {{text, colour}, ...}
+local function drawTooltip(mx, my, lines)
+  local w = 0
+  for _, l in ipairs(lines) do w = math.max(w, textW(l[1], 's')) end
+  w = w + 16
+  local h = #lines * 15 + 10
+  local x, y = math.min(mx + 14, W - w - 4), math.min(my + 14, H - h - 4)
+  setc(COL.bg, 0.95)
+  lg.rectangle('fill', x, y, w, h)
+  lg.setLineWidth(1)
+  setc(COL.green)
+  lg.rectangle('line', x + 0.5, y + 0.5, w - 1, h - 1)
+  for i, l in ipairs(lines) do
+    setc(l[2] or COL.ink)
+    text(l[1], x + 8, y + 5 + (i - 1) * 15, 's')
+  end
+end
+
+local function perkTooltip(key)
+  local p = PERKS[key]
+  local lines = {{p.name, PERK_COL[p.rarity]}, {PERK_RARITY[p.rarity] .. '  ·  $' .. PERK_COST[p.rarity], COL.dim}, {p.desc, COL.ink}}
+  if p.syn then lines[#lines + 1] = {'+ ' .. CLASSES[p.syn[1]].name .. ': ' .. p.syn[2], CLASSES[p.syn[1]].color} end
+  return lines
+end
 local TIER_COL = {{COL.mid, COL.grid}, {COL.mintText, COL.mintSoft}, {COL.bg, COL.cyan}, {COL.bg, COL.gold}}
 
 local function button(r, label, enabled, hover, primary)
@@ -1967,7 +2172,7 @@ local function drawShop()
   end
 
   -- party
-  card(SH.px - 8, 56, SH.pw + 16, 444)
+  card(SH.px - 8, 56, SH.pw + 16, 452)
   setc(COL.ink)
   text('party/', SH.px + 4, 64, 'm')
   pill(('%d/%d'):format(#run.party, maxUnits(l)), SH.px + 14 + textW('party/', 'm'), 65, COL.mid, COL.grid)
@@ -1999,7 +2204,32 @@ local function drawShop()
   end
   setc(COL.dim)
   if #run.party == 0 then text('the worm has no modules.\nbuy one from the market ->', SH.px + 4, SH.py + 4, 'm') end
-  text('# first unit = head of the worm\n# 3 copies -> Lv2, 9 copies -> Lv3', SH.px + 4, 466, 's')
+  -- installed perks
+  local tip
+  setc(COL.ink)
+  text('perks/', SH.px + 4, 464, 's')
+  setc(COL.dim)
+  text(#run.perks .. '/' .. PERK_MAX, SH.px + 52, 464, 's')
+  for i = 1, PERK_MAX do
+    local r, key = chipRect(i), run.perks[i]
+    local hover = inRect(mx, my, r)
+    if key then
+      local c = PERK_COL[PERKS[key].rarity]
+      setc(hover and COL.hover or COL.card)
+      lg.rectangle('fill', r.x, r.y, r.w, r.h)
+      lg.setLineWidth(1)
+      setc(c)
+      lg.rectangle('line', r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
+      text(key .. '.ko', r.x, r.y + 3, 's', 'center', r.w)
+      if hover then tip = perkTooltip(key) end
+    else
+      setc(COL.grid)
+      lg.setLineWidth(1)
+      lg.rectangle('line', r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
+      setc(COL.light)
+      text('[ empty ]', r.x, r.y + 3, 's', 'center', r.w)
+    end
+  end
 
   -- recruit cards
   for i = 1, 4 do
@@ -2040,26 +2270,34 @@ local function drawShop()
     end
   end
 
-  button(REROLL_BTN, '[R] reroll $' .. REROLL_COST, run.gold >= REROLL_COST, inRect(mx, my, REROLL_BTN))
+  button(REROLL_BTN, '[R] reroll $' .. run.rerollCost, run.gold >= run.rerollCost, inRect(mx, my, REROLL_BTN))
   local maxed = run.shopLevel >= SHOP_MAX
   local upCost = SHOP_UP_COST[run.shopLevel]
   button(SHOPUP_BTN, maxed and 'market maxed' or ('[U] upgrade $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
   button(START_BTN, '[Space] inject lvl ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
 
   -- class bonuses as a horizontal bar chart
-  card(360, 340, 576, 184)
+  -- class bonuses (full descriptions in a hover tooltip)
+  card(360, 340, 284, 184)
   setc(COL.ink)
-  text('class bonuses', 376, 345, 'm')
+  text('class bonuses', 372, 345, 'm')
   local counts = classCounts()
   for i, cl in ipairs(CLASS_ORDER) do
     local c = CLASSES[cl]
     local y = 368 + (i - 1) * 14
     local n, tier = counts[cl] or 0, classTier(counts, cl)
+    if inRect(mx, my, {x = 362, y = y, w = 280, h = 14}) then
+      setc(COL.hover)
+      lg.rectangle('fill', 362, y, 280, 14)
+      tip = {{c.name .. '  (' .. n .. ' fielded)', c.color},
+             {'(' .. c.tiers[1] .. ') ' .. c.desc[1], tier >= 1 and COL.green or COL.dim},
+             {'(' .. c.tiers[2] .. ') ' .. c.desc[2], tier >= 2 and COL.green or COL.dim}}
+    end
     setc(c.color, n > 0 and 1 or 0.35)
-    glyph(cl, 380, y + 7, 3.5)
+    glyph(cl, 374, y + 7, 3.5)
     setc(n > 0 and COL.ink or COL.dim)
-    text(c.name, 392, y, 's')
-    local bx, bw = 470, 150
+    text(c.name, 386, y, 's')
+    local bx, bw = 462, 100
     setc(COL.grid)
     lg.rectangle('fill', bx, y + 4, bw, 7)
     local f = math.min(1, n / c.tiers[2])
@@ -2072,14 +2310,46 @@ local function drawShop()
     local tx = bx + bw * c.tiers[1] / c.tiers[2]
     lg.line(tx, y + 3, tx, y + 12)
     setc(tier > 0 and COL.green or COL.dim)
-    text(('%d  (%d/%d)'):format(n, c.tiers[1], c.tiers[2]), 628, y, 's')
-    if tier > 0 then
-      setc(COL.ink)
-      text(c.desc[tier], 700, y, 's')
-    else
-      setc(COL.dim)
-      text(c.desc[1], 700, y, 's')
+    text(('%d (%d/%d)'):format(n, c.tiers[1], c.tiers[2]), 570, y, 's')
+  end
+
+  -- perk slot
+  local pc = PERK_CARD
+  card(pc.x, pc.y, pc.w, pc.h)
+  setc(COL.ink)
+  text('perk/', pc.x + 12, pc.y + 5, 'm')
+  local pkey = run.perkOffer
+  if pkey then
+    local p = PERKS[pkey]
+    local cost, rc = PERK_COST[p.rarity], PERK_COL[p.rarity]
+    local can = run.gold >= cost and #run.perks < PERK_MAX
+    if inRect(mx, my, pc) then
+      lg.setLineWidth(1)
+      setc(COL.green)
+      lg.rectangle('line', pc.x + 0.5, pc.y + 0.5, pc.w - 1, pc.h - 1)
     end
+    local cs = '$' .. cost
+    local cx = pc.x + pc.w - 12 - pillW(cs)
+    pill(cs, cx, pc.y + 8, can and COL.bg or COL.dim, can and COL.gold or COL.grid)
+    pill(PERK_RARITY[p.rarity], cx - 6 - pillW(PERK_RARITY[p.rarity]), pc.y + 8, COL.bg, rc)
+    setc(rc)
+    text(p.name, pc.x + 12, pc.y + 32, 'm')
+    setc(COL.ink)
+    text(p.desc, pc.x + 12, pc.y + 54, 's', 'left', pc.w - 24)
+    if p.syn then
+      local sc = CLASSES[p.syn[1]]
+      setc(sc.color, (counts[p.syn[1]] or 0) > 0 and 1 or 0.6)
+      text('+ ' .. sc.name .. ': ' .. p.syn[2], pc.x + 12, pc.y + 100, 's', 'left', pc.w - 24)
+    end
+    setc(COL.dim)
+    local status = #run.perks >= PERK_MAX and 'perk slots full - right-click one to remove'
+      or (run.gold < cost and ('need $' .. cost) or 'click to install')
+    text(status, pc.x + 12, pc.y + pc.h - 22, 's')
+  else
+    setc(COL.light)
+    text('[ installed ]', pc.x, pc.y + pc.h / 2 - 8, 'm', 'center', pc.w)
+    setc(COL.dim)
+    text('reroll for a new perk', pc.x, pc.y + pc.h / 2 + 12, 's', 'center', pc.w)
   end
 
   if run.msg and run.msg.t > 0 then
@@ -2088,7 +2358,9 @@ local function drawShop()
   end
 
   setc(COL.dim)
-  text('right-click: kill unit  ·  [Esc]x2 abandon run', SH.px, H - 26, 's')
+  text('right-click: remove unit/perk  ·  Esc x2: quit', SH.px, H - 26, 's')
+
+  if tip and not run.catalog then drawTooltip(mx, my, tip) end
 
   if run.catalog then drawCatalogue(mx, my) end
 end
@@ -2156,7 +2428,7 @@ local function drawMenu()
   setc(COL.mid)
   ctext('steer the worm: [A]/[D] or [Left]/[Right]   ·   modules attack on their own', W / 2, 494, 's')
   setc(COL.dim)
-  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause  [M] music', W / 2, 512, 's')
+  ctext('the kernel walls hurt. ramming a process hurts both sides. [P] pause', W / 2, 512, 's')
 end
 
 local function drawEnd(title, c, sub)
@@ -2176,26 +2448,12 @@ end
 ---------------------------------------------------------------------------
 -- LOVE callbacks
 ---------------------------------------------------------------------------
--- background music (desktop build). The web build leaves the track out of the
--- game package and plays it from the page instead, so this simply finds no file there.
-local MUSIC_FILE = 'music/memory.mp3'
-local music, musicOn = nil, true
-
 function love.load()
   lg.setLineStyle('smooth')
   lg.setLineJoin('bevel')
   resize(lg.getDimensions())
   local ok = pcall(initSounds)
   if not ok then sfx = {} end
-  if love.filesystem.getInfo(MUSIC_FILE) then
-    local loaded, src = pcall(love.audio.newSource, MUSIC_FILE, 'stream')
-    if loaded then
-      music = src
-      music:setLooping(true)
-      music:setVolume(0.35)
-      music:play()
-    end
-  end
 end
 
 function love.resize(w, h) resize(w, h) end
@@ -2231,10 +2489,13 @@ function love.draw()
   lg.pop()
 end
 
+-- rerolls both the units and the perk slot; each reroll in the same market visit costs double
 local function reroll()
-  if run.gold < REROLL_COST then play('error'); return end
-  run.gold = run.gold - REROLL_COST
+  if run.gold < run.rerollCost then play('error'); shopMsg('Rerolling costs $' .. run.rerollCost .. ' now', COL.red); return end
+  run.gold = run.gold - run.rerollCost
+  run.rerollCost = run.rerollCost * 2
   rollOffers()
+  rollPerk()
   play('click')
 end
 
@@ -2255,13 +2516,6 @@ local function tryStart()
 end
 
 function love.keypressed(key)
-  if key == 'm' then
-    musicOn = not musicOn
-    if music then
-      if musicOn then music:play() else music:pause() end
-    end
-    return
-  end
   if state == 'menu' then
     if key == 'space' or key == 'return' then newRun()
     elseif key == 'escape' then love.event.quit() end
@@ -2303,6 +2557,10 @@ function love.mousepressed(x, y, b)
     if inRect(mx, my, SHOPUP_BTN) then upgradeShop(); return end
     for i = 1, 4 do
       if inRect(mx, my, cardRect(i)) then buyOffer(i); return end
+    end
+    if inRect(mx, my, PERK_CARD) then buyPerk(); return end
+    for i = 1, PERK_MAX do
+      if b == 2 and inRect(mx, my, chipRect(i)) then sellPerk(i); return end
     end
     for i = #run.party, 1, -1 do
       if inRect(mx, my, sellRect(i)) then sellMember(i); return end

@@ -6,6 +6,7 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 - Merchants make money: enemies can drop coins, and merchants add interest, gold per level, or gold per kill.
 - The darkmarket (shop) has 5 levels. Upgrading it with gold raises the odds of higher tiers; the Catalogue lists every unit and the current odds.
 - Colliding with an enemy damages both sides. Rammers take half the collision damage and hit much harder.
+- Perks: one perk slot in the darkmarket (common $5, rare $8, epic $12, legendary $16; rarer at higher market levels), up to 3 installed. Many get stronger with a matching class. Rerolling refreshes units and the perk, and costs double each time within the same market visit.
 - From level 2 on, a security update types out at the start of most levels as the kernel hardens its defences.
 - Enemies include kamikazes that dive in and explode, repulsors whose pulses shove the worm, and snipers with laser sights.
 - Terminal look: phosphor-green text in Roboto Mono, CRT scanlines, a dmesg-style boot screen.
@@ -23,7 +24,6 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 | C | Open / close the catalogue |
 | Right-click a unit | Sell it |
 | P or Esc | Pause |
-| M | Music on / off |
 
 ## Run on desktop
 
@@ -44,7 +44,5 @@ powershell -ExecutionPolicy Bypass -File build-web.ps1
 This refreshes the runtime files in `web/` and keeps the hand-written `web/index.html`. Pushing to `main` redeploys the page through GitHub Actions.
 
 ## Credits
-
-Music: [Memory](https://www.newgrounds.com/audio/listen/1628238) by Sunnexo (from *Netpunk*), licensed [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Newgrounds allows its use in web-based games; ask the artist before using it in a non-web build. NetWorm is non-commercial.
 
 Roboto Mono font: Copyright 2015 The Roboto Mono Project Authors, Apache License 2.0 (see `font/NOTICE.txt`).

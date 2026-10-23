@@ -93,3 +93,28 @@ picks a bullet ring or a charge instead of summoning again.
 the boss summons again. QA bot (4 runs each): seed 1 average level 7.8 -> 10.5, seed 2 unchanged at 7.8
 (its runs die before the boss gets long); one run reached level 15. Also fixed a flaky test that
 depended on which random unit it bought.
+
+## Cycle 7: perks (requested) and music removed (requested)
+
+**Request.** Perks bought in the shop: a separate single perk slot, rerolled with the same button whose
+cost doubles on every click in the same market visit; up to 3 perks; priced above units and by rarity;
+some perks favour classes; e.g. touching a wall fires bullets. Separately: remove the music for now.
+
+**Change.** 13 perks in 4 rarities (common $5, rare $8, epic $12, legendary $16), rarer odds at higher
+market levels, never offering one already installed:
+Ricochet Protocol (wall hits fire a fan of bullets; +1 per Marksman), Thick Firmware (+20% HP; Bruisers
++40%), Overclock (+15% attack speed; Arcanists +15% damage), Coin Magnet (coins fly in from afar, +1 max
+interest; more drops per Merchant), Spiked Hull (ram x2; Rammers take less), Firewall Breach (kills
+explode; bigger with Demolishers), Self-Repair (1%/s regen; doubled by Sages), Packet Storm (head fires a
+ring every 5 s; +2 bullets per Cutthroat), Root Access (first death each level is undone; 100% with
+Sages), Fork Bomb (tail launches fuse-imps; faster with Artificers), Virulence (curses jump on death;
+further with Hexers), Zero-Day Exploit (+10% crit; Cutthroat crits x4), Polymorphic Code (+1 slot).
+The market shows the perk card beside a narrower class panel (full class text moved to a hover
+tooltip); installed perks appear as `name.ko` chips under the party (hover for details, right-click to
+remove for half the price). Perk damage scales with the level. The music, its M key and credit are gone.
+
+**Checked.** 8 new tests: reroll cost 1/2/4 then 8, reset next visit; reroll changes the perk; prices by
+rarity, 3-perk cap, half refund; ricochet fires on a wall hit; +1 slot; Root Access once per level;
+HP/crit/attack-speed perks; breach explosion and Packet Storm ring. Screenshot of the market with perks
+installed, a legendary on offer and a class tooltip. QA bot with a perk-buying policy: runs that afford
+perks reach levels 12-17.
