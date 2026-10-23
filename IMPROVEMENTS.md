@@ -118,3 +118,16 @@ rarity, 3-perk cap, half refund; ricochet fires on a wall hit; +1 slot; Root Acc
 HP/crit/attack-speed perks; breach explosion and Packet Storm ring. Screenshot of the market with perks
 installed, a legendary on offer and a class tooltip. QA bot with a perk-buying policy: runs that afford
 perks reach levels 12-17.
+
+## Cycle 8: the catalogue lists perks
+
+**Problem.** The catalogue is meant to show everything the market can offer, but after perks were added
+it only listed modules, so there was no way to see which perks exist, their rarities or their odds.
+
+**Change.** The catalogue has two tabs, modules and perks (click or press Tab). The perks page groups all
+13 perks by rarity with each rarity's price and current odds, marks installed ones, and shows the effect
+and class synergy of the hovered perk.
+
+**Checked.** Test: C opens the catalogue, Tab switches to perks and back (drawing the perks page on the
+way), Esc closes it without leaving the market. Screenshots of both tabs; an overlap between the
+"installed" tag and long perk names was found in the first capture and fixed.

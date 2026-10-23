@@ -2023,6 +2023,7 @@ local CATALOG_BTN = {x = W - 24 - 118, y = 12, w = 118, h = 30}
 local CAT = {x = 40, y = 30, w = 880, h = 480}
 local CAT_CLOSE = {x = CAT.x + CAT.w - 120, y = CAT.y + 16, w = 100, h = 28}
 local PERK_CARD = {x = 652, y = 340, w = 284, h = 184}
+local CAT_TABS = {units = {x = CAT.x + 200, y = CAT.y + 20, w = 110, h = 24}, perks = {x = CAT.x + 316, y = CAT.y + 20, w = 90, h = 24}}
 local function chipRect(i) return {x = SH.px + (i - 1) * 106, y = 482, w = 100, h = 20} end
 
 -- small bordered info box next to the mouse; lines = {{text, colour}, ...}
@@ -2069,6 +2070,59 @@ local function button(r, label, enabled, hover, primary)
   text(label, r.x, r.y + (r.h - fontH(f)) / 2, f, 'center', r.w)
 end
 
+-- every perk, grouped by rarity, with this market level's odds
+local function drawPerkCatalogue(mx, my)
+  local odds, hovered = PERK_ODDS[run.shopLevel], nil
+  local colW = (CAT.w - 40 - 3 * 14) / 4
+  for rarity = 1, 4 do
+    local cx, cy = CAT.x + 20 + (rarity - 1) * (colW + 14), CAT.y + 72
+    local label = PERK_RARITY[rarity]
+    pill(label, cx, cy, COL.bg, PERK_COL[rarity])
+    setc(odds[rarity] > 0 and COL.mid or COL.light)
+    text(('$%d  %3d%%'):format(PERK_COST[rarity], math.floor(odds[rarity] * 100 + 0.5)), cx + pillW(label) + 8, cy + 2, 's')
+    local i = 0
+    for _, key in ipairs(PERK_ORDER) do
+      local p = PERKS[key]
+      if p.rarity == rarity then
+        i = i + 1
+        local r = {x = cx, y = cy + 24 + (i - 1) * 34, w = colW, h = 32}
+        if inRect(mx, my, r) then
+          hovered = p
+          setc(COL.hover)
+          lg.rectangle('fill', r.x - 4, r.y, r.w + 8, r.h)
+        end
+        setc(PERK_COL[rarity])
+        text(p.name, r.x, r.y, 'm')
+        if hasPerk(key) then
+          setc(COL.green)
+          text('installed  ' .. key .. '.ko', r.x, r.y + 16, 's')
+        else
+          setc(COL.dim)
+          text(key .. '.ko' .. (p.syn and ('  + ' .. CLASSES[p.syn[1]].name) or ''), r.x, r.y + 16, 's')
+        end
+      end
+    end
+  end
+  local fy = CAT.y + CAT.h - 52
+  setc(COL.grid)
+  lg.setLineWidth(1)
+  lg.line(CAT.x + 20, fy - 8, CAT.x + CAT.w - 20, fy - 8)
+  if hovered then
+    setc(PERK_COL[hovered.rarity])
+    text(hovered.name, CAT.x + 20, fy, 'm')
+    setc(COL.mid)
+    text(hovered.desc, CAT.x + 20, fy + 20, 's')
+    if hovered.syn then
+      local sc = CLASSES[hovered.syn[1]]
+      setc(sc.color)
+      text('+ ' .. sc.name .. ': ' .. hovered.syn[2], CAT.x + CAT.w - 420, fy + 2, 's', 'right', 400)
+    end
+  else
+    setc(COL.dim)
+    text('Hover a perk for its effect and the class that makes it stronger.', CAT.x + 20, fy + 8, 's')
+  end
+end
+
 -- every unit the shop can roll, grouped by tier, with the odds for the current shop level
 local function drawCatalogue(mx, my)
   setc(COL.bg, 0.8)
@@ -2078,10 +2132,25 @@ local function drawCatalogue(mx, my)
   text('$ man worm-modules', CAT.x + 20, CAT.y + 8, 's')
   setc(COL.ink)
   text('Catalogue', CAT.x + 20, CAT.y + 20, 'l')
+  local tab = run.catTab or 'units'
+  for key, r in pairs(CAT_TABS) do
+    local label = key == 'units' and 'modules' or 'perks'
+    button(r, label, true, inRect(mx, my, r), tab == key)
+  end
   setc(COL.dim)
-  text(('Every module the market can sell. Odds shown for market level %d; upgrade it to unlock higher tiers.'):format(run.shopLevel),
-    CAT.x + 20, CAT.y + 46, 's')
+  text('[Tab] switch', CAT_TABS.perks.x + CAT_TABS.perks.w + 10, CAT.y + 26, 's')
+  if tab == 'units' then
+    text(('Every module the market can sell. Odds shown for market level %d; upgrade it to unlock higher tiers.'):format(run.shopLevel),
+      CAT.x + 20, CAT.y + 50, 's')
+  else
+    text(('Every perk the perk slot can offer. Odds shown for market level %d. Up to %d installed.'):format(run.shopLevel, PERK_MAX),
+      CAT.x + 20, CAT.y + 50, 's')
+  end
   button(CAT_CLOSE, '[Esc] close', true, inRect(mx, my, CAT_CLOSE))
+  if tab == 'perks' then
+    drawPerkCatalogue(mx, my)
+    return
+  end
 
   local odds, hovered = SHOP_ODDS[run.shopLevel], nil
   local colW = (CAT.w - 40 - 3 * 14) / 4
@@ -2521,7 +2590,8 @@ function love.keypressed(key)
     elseif key == 'escape' then love.event.quit() end
   elseif state == 'shop' then
     if run.catalog then
-      if key == 'escape' or key == 'c' then run.catalog = false; play('click') end
+      if key == 'escape' or key == 'c' then run.catalog = false; play('click')
+      elseif key == 'tab' then run.catTab = (run.catTab == 'perks') and 'units' or 'perks'; play('click') end
     elseif key == 'space' or key == 'return' then tryStart()
     elseif key == 'r' then reroll()
     elseif key == 'u' then upgradeShop()
@@ -2550,6 +2620,9 @@ function love.mousepressed(x, y, b)
     if b == 1 then play('click'); newRun() end
   elseif state == 'shop' then
     if run.catalog then
+      for key, r in pairs(CAT_TABS) do
+        if inRect(mx, my, r) then run.catTab = key; play('click'); return end
+      end
       if inRect(mx, my, CAT_CLOSE) or not inRect(mx, my, CAT) then run.catalog = false; play('click') end
       return
     end
