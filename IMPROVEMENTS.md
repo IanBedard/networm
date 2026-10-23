@@ -144,3 +144,23 @@ key press.
 **Checked.** In the browser the engine has one audio context; instrumenting it showed clicking Start in
 the menu starts an audio buffer (the click effect). The embedded test browser allows autoplay, so the
 suspended-context case itself could not be reproduced there; I could not listen to the output.
+
+## Seamless looping music (requested)
+
+**Request.** Bring back "Memory" by Sunnexo as the soundtrack and make it loop seamlessly.
+
+**Change.** The loop points were found by analysing the track rather than by ear: 24 log-spaced
+frequency bands per 21 ms frame, tempo from onset autocorrelation (176 BPM), then a search over start
+points in the first 45 s and end points in the last 2 minutes for the pair whose surrounding 6 s sound
+most alike, with whole-bar lengths required, phrase lengths preferred and loudness mismatch penalised.
+Best: 5.08 s -> 211.28 s (151 bars; similarity 0.91, waveform correlation 0.85, loudness 0.44 vs 0.43),
+then aligned to the sample by cross-correlation. The intro plays once, then that section loops with a
+0.2 s equal-power crossfade baked into the seam. Desktop streams it through a queueable source that wraps
+without a gap; the web page decodes it with Web Audio and loops natively between the same points (it is
+served as its own file, not inside the base64 game package). M toggles the music on both.
+
+**Checked.** Streaming through the game's own code across the seam: the sample step at the join is 0.055
+against a typical 0.041 (p99 0.28) for this track, i.e. indistinguishable from normal audio; identical
+numbers on the web build's decoded buffer. Desktop load 0.64 s, streaming under 1 ms CPU per second of
+music. Web: after the first click the source plays with loop 5.0773-211.2837 s at 35% volume. I could
+not listen to the result, so the "seamless" verdict rests on these measurements.

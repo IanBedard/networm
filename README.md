@@ -24,6 +24,7 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 | C | Open / close the catalogue |
 | Right-click a unit | Sell it |
 | P or Esc | Pause |
+| M | Music on / off |
 
 ## Run on desktop
 
@@ -44,5 +45,7 @@ powershell -ExecutionPolicy Bypass -File build-web.ps1
 This refreshes the runtime files in `web/` and keeps the hand-written `web/index.html`. Pushing to `main` redeploys the page through GitHub Actions.
 
 ## Credits
+
+Music: [Memory](https://www.newgrounds.com/audio/listen/1628238) by Sunnexo (from *Netpunk*), licensed [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Newgrounds allows its use in web-based games; ask the artist before using it in a non-web build. NetWorm is non-commercial. The track's intro plays once, then it loops seamlessly between two analysed points (5.08 s and 211.28 s).
 
 Roboto Mono font: Copyright 2015 The Roboto Mono Project Authors, Apache License 2.0 (see `font/NOTICE.txt`).
