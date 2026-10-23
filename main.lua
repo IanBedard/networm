@@ -1012,7 +1012,8 @@ end
 local REPULSE_R = 110
 local function repulse(e)
   for _, u in ipairs(arena.alive) do
-    if dist(e.x, e.y, u.x, u.y) < REPULSE_R + UR then hurtUnit(u, e.dmg) end
+    -- the pulse hits nearly every segment at once, so it hurts less than contact; its threat is the shove
+    if dist(e.x, e.y, u.x, u.y) < REPULSE_R + UR then hurtUnit(u, e.dmg * 0.5) end
   end
   local h = arena.head
   if dist(e.x, e.y, h.x, h.y) < REPULSE_R + 40 then
@@ -1025,6 +1026,24 @@ local function repulse(e)
   shake(4)
 end
 
+local RING_WARN = 0.6
+
+-- true when bullet k of a ring falls inside its safe gap
+local function inRingGap(ring, k)
+  return (k - ring.gap) % ring.n < ring.gapSize
+end
+
+local function fireRing(e)
+  local ring = e.ring
+  for k = 1, ring.n do
+    if not inRingGap(ring, k) then
+      enemyShoot(e.x, e.y, ring.off + k / ring.n * math.pi * 2, 105, e.dmg * 0.4)
+    end
+  end
+  e.ring = nil
+  play('boss')
+end
+
 local function bossAI(e, nx, ny, dt)
   e.bt = e.bt - dt
   if e.bt > 0 then return end
@@ -1032,9 +1051,9 @@ local function bossAI(e, nx, ny, dt)
   e.bt = enraged and 2.4 or 3.4
   local ab = rand(1, 3)
   if ab == 1 then
-    local n, off = enraged and 24 or 16, rr(0, 6.28)
-    for k = 1, n do enemyShoot(e.x, e.y, off + k / n * math.pi * 2, 120, e.dmg * 0.5) end
-    play('boss')
+    -- bullet ring: telegraphed first, and always leaves a gap the worm can slip through
+    local n = enraged and 24 or 16
+    e.ring = {t = RING_WARN, n = n, off = rr(0, 6.28), gap = rand(1, n), gapSize = enraged and 4 or 5}
   elseif ab == 2 then
     for k = 1, enraged and 5 or 3 do
       local a = rr(0, 6.28)
@@ -1056,6 +1075,10 @@ local function updateEnemies(dt)
         dot.t, dot.tick = dot.t - dt, dot.tick - dt
         if dot.tick <= 0 then dot.tick = 0.3; damageEnemy(e, dot.dps * 0.3, nil, {color = COL.purple}) end
         if dot.t <= 0 then table.remove(e.dots, k) end
+      end
+      if e.ring then
+        e.ring.t = e.ring.t - dt
+        if e.ring.t <= 0 then fireRing(e) end
       end
     end
     if not e.dead then
@@ -1415,6 +1438,19 @@ local function drawEnemy(e)
     dashedCircle(e.x, e.y, REPULSE_R * p, 14, time * 3)
   end
   if tp == 'kamikaze' and e.cs == 'arm' and math.floor(time * 20) % 2 == 0 then c = COL.ink end
+  if e.ring then
+    -- ring telegraph: a spoke for every bullet about to fire; the missing spokes are the safe gap
+    local p = 1 - e.ring.t / RING_WARN
+    setc(COL.red, 0.25 + 0.6 * p)
+    lg.setLineWidth(2)
+    for k = 1, e.ring.n do
+      if not inRingGap(e.ring, k) then
+        local a = e.ring.off + k / e.ring.n * math.pi * 2
+        local r0, r1 = e.r + 6, e.r + 6 + 34 * p
+        lg.line(e.x + math.cos(a) * r0, e.y + math.sin(a) * r0, e.x + math.cos(a) * r1, e.y + math.sin(a) * r1)
+      end
+    end
+  end
   setc(c, alpha)
   lg.push()
   lg.translate(e.x, e.y)

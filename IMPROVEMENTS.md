@@ -18,3 +18,19 @@ this run"); the footer hint says so. Losing window focus during a fight pauses t
 
 **Checked.** Tests: one Esc keeps the run, a slow second Esc only re-arms, a quick second Esc abandons;
 focus loss in the arena sets pause.
+
+## Cycle 2: a fair first boss
+
+**Problem.** The QA bot, now tagging every point of damage by its source, showed that 3 of 4 runs died
+at the first antivirus boss (level 6) and that 78% of the damage there came from its bullet rings:
+full 360-degree rings with no warning and no gap, which a long worm cannot dodge. On levels 7-9 the
+repulsor pulse became the top damage source because it hits nearly every segment at once.
+
+**Change.** Boss rings are now telegraphed for 0.6 s with a spoke drawn for every bullet about to fire;
+each ring leaves a gap (5 of 16 bullets, 4 of 24 when enraged) whose missing spokes show where to steer.
+Ring bullets are slower (105 vs 120) and hit a little softer (40% vs 50% of contact damage).
+Repulsor pulses do half damage; their shove stays, since that is their real threat.
+
+**Checked.** Test: a forced ring fires nothing during the warning, then exactly 11 of 16 bullets.
+QA bot: average level 6.8 -> 7.8 (seed 1, 4 runs) and 8.7 over 6 runs on seed 2; the level-6 wall is
+gone (most runs now pass it) even though the bot does not aim for the gap.
