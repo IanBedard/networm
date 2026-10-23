@@ -645,18 +645,19 @@ local SHOP_ODDS = {
   {0.3, 0.4, 0.25, 0.05},
   {0.2, 0.35, 0.3, 0.15},
 }
-local function rollOffers()
+local function rollUnit()
   local o = SHOP_ODDS[run.shopLevel]
   local top = 1
   for k = 1, 4 do if o[k] > 0 then top = k end end
-  for i = 1, 4 do
-    local r, tier = rand(), top
-    for k = 1, top do
-      if r < o[k] then tier = k; break end
-      r = r - o[k]
-    end
-    run.offers[i] = choice(UNIT_TIERS[tier])
+  local r, tier = rand(), top
+  for k = 1, top do
+    if r < o[k] then tier = k; break end
+    r = r - o[k]
   end
+  return choice(UNIT_TIERS[tier])
+end
+local function rollOffers()
+  for i = 1, 4 do run.offers[i] = rollUnit() end
 end
 -- the perk slot: rarity rolled from the market level, never a perk already installed
 local function rollPerk()
@@ -677,8 +678,14 @@ end
 -- a fresh market visit: new offers, and the reroll price starts over
 local function openMarket()
   run.rerollCost = REROLL_COST
-  rollOffers()
-  rollPerk()
+  if run.locked then
+    -- a locked market keeps what was on offer; only slots that were bought get refilled
+    for i = 1, 4 do if not run.offers[i] then run.offers[i] = rollUnit() end end
+    if not run.perkOffer then rollPerk() end
+  else
+    rollOffers()
+    rollPerk()
+  end
 end
 local function findMember(key)
   for i, m in ipairs(run.party) do if m.key == key then return m, i end end
@@ -2126,9 +2133,10 @@ local function rowRect(i) return {x = SH.px, y = SH.py + (i - 1) * SH.rowH, w = 
 local function sellRect(i) local r = rowRect(i); return {x = r.x + r.w - 58, y = r.y + 9, w = 52, h = 22} end
 local function upRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 1, w = 20, h = 15} end
 local function downRect(i) local r = rowRect(i); return {x = r.x + r.w - 84, y = r.y + 19, w = 20, h = 15} end
-local REROLL_BTN = {x = 360, y = 292, w = 200, h = 40}
-local SHOPUP_BTN = {x = 568, y = 292, w = 152, h = 40}
-local START_BTN = {x = 728, y = 292, w = 208, h = 40}
+local REROLL_BTN = {x = 360, y = 292, w = 136, h = 40}
+local LOCK_BTN = {x = 502, y = 292, w = 96, h = 40}
+local SHOPUP_BTN = {x = 604, y = 292, w = 136, h = 40}
+local START_BTN = {x = 746, y = 292, w = 190, h = 40}
 local CATALOG_BTN = {x = W - 24 - 118, y = 12, w = 118, h = 30}
 local CAT = {x = 40, y = 30, w = 880, h = 480}
 local CAT_CLOSE = {x = CAT.x + CAT.w - 120, y = CAT.y + 16, w = 100, h = 28}
@@ -2143,7 +2151,7 @@ local function drawTooltip(mx, my, lines)
   w = w + 16
   local h = #lines * 15 + 10
   local x, y = math.min(mx + 14, W - w - 4), math.min(my + 14, H - h - 4)
-  setc(COL.bg, 0.95)
+  setc(COL.bg)
   lg.rectangle('fill', x, y, w, h)
   lg.setLineWidth(1)
   setc(COL.green)
@@ -2450,9 +2458,30 @@ local function drawShop()
   end
 
   button(REROLL_BTN, '[R] reroll $' .. run.rerollCost, run.gold >= run.rerollCost, inRect(mx, my, REROLL_BTN))
+  button(LOCK_BTN, run.locked and '[L] locked' or '[L] lock', true, inRect(mx, my, LOCK_BTN), run.locked)
+  if inRect(mx, my, LOCK_BTN) then
+    tip = {{run.locked and 'Market locked' or 'Lock the market', COL.green},
+           {'Unbought modules and the perk carry over to the next level.', COL.ink},
+           {'Bought slots are refilled. Stays locked until you unlock it.', COL.dim}}
+  end
   local maxed = run.shopLevel >= SHOP_MAX
   local upCost = SHOP_UP_COST[run.shopLevel]
   button(SHOPUP_BTN, maxed and 'market maxed' or ('[U] upgrade $' .. upCost), not maxed and run.gold >= upCost, inRect(mx, my, SHOPUP_BTN))
+  if inRect(mx, my, SHOPUP_BTN) then
+    local cur, nxt = SHOP_ODDS[run.shopLevel], SHOP_ODDS[math.min(SHOP_MAX, run.shopLevel + 1)]
+    tip = {{maxed and ('market lv' .. run.shopLevel .. ' (max)') or ('market lv%d -> lv%d  for $%d'):format(run.shopLevel, run.shopLevel + 1, upCost), COL.gold},
+           {'chance of each tier in the market', COL.dim}}
+    for k = 1, 4 do
+      local a, b = math.floor(cur[k] * 100 + 0.5), math.floor(nxt[k] * 100 + 0.5)
+      tip[#tip + 1] = {maxed and ('tier %d: %3d%%'):format(k, a) or ('tier %d: %3d%%  ->  %3d%%'):format(k, a, b), ({COL.ink, COL.green, COL.cyan, COL.gold})[k]}
+    end
+    local pc, pn = PERK_ODDS[run.shopLevel], PERK_ODDS[math.min(SHOP_MAX, run.shopLevel + 1)]
+    tip[#tip + 1] = {'perk rarity', COL.dim}
+    for k = 1, 4 do
+      local a, b = math.floor(pc[k] * 100 + 0.5), math.floor(pn[k] * 100 + 0.5)
+      tip[#tip + 1] = {maxed and ('%-9s %3d%%'):format(PERK_RARITY[k], a) or ('%-9s %3d%%  ->  %3d%%'):format(PERK_RARITY[k], a, b), PERK_COL[k]}
+    end
+  end
   button(START_BTN, '[Space] inject lvl ' .. l, #run.party > 0, inRect(mx, my, START_BTN), true)
 
   -- class bonuses as a horizontal bar chart
@@ -2678,6 +2707,12 @@ local function reroll()
   play('click')
 end
 
+local function toggleLock()
+  run.locked = not run.locked
+  play('click')
+  shopMsg(run.locked and 'Market locked - these offers carry over to the next level' or 'Market unlocked', run.locked and COL.green or COL.text)
+end
+
 local function upgradeShop()
   if run.shopLevel >= SHOP_MAX then play('error'); shopMsg('The market is already max level', COL.red); return end
   local cost = SHOP_UP_COST[run.shopLevel]
@@ -2705,6 +2740,7 @@ function love.keypressed(key)
     elseif key == 'space' or key == 'return' then tryStart()
     elseif key == 'r' then reroll()
     elseif key == 'u' then upgradeShop()
+    elseif key == 'l' then toggleLock()
     elseif key == 'c' then run.catalog = true; play('click')
     elseif key == 'escape' then
       -- leaving the market throws the run away, so it takes two presses
@@ -2738,6 +2774,7 @@ function love.mousepressed(x, y, b)
     end
     if inRect(mx, my, CATALOG_BTN) then run.catalog = true; play('click'); return end
     if inRect(mx, my, SHOPUP_BTN) then upgradeShop(); return end
+    if inRect(mx, my, LOCK_BTN) then toggleLock(); return end
     for i = 1, 4 do
       if inRect(mx, my, cardRect(i)) then buyOffer(i); return end
     end

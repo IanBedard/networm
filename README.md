@@ -21,6 +21,7 @@ A kernel worm auto-battler made with [LÖVE](https://love2d.org) 11. You are the
 | Space | Start a run / start the next level |
 | R | Reroll the darkmarket |
 | U | Upgrade the darkmarket |
+| L | Lock the darkmarket (offers carry over to the next level) |
 | C | Open / close the catalogue |
 | Right-click a unit | Sell it |
 | P or Esc | Pause |

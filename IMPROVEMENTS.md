@@ -185,3 +185,16 @@ class. Hits throw a few more sparks.
 **Checked.** A screenshot gallery firing every style at 2x zoom; bombs first read as hollow rings and turret
 bolts were too dim, both fixed and re-captured. Tests pass (and a pre-existing flaky boss-ring test was
 stabilised); QA bot draw time stays well under a millisecond.
+
+## Market lock and upgrade odds (requested)
+
+**Request.** Like SNKRX's shop: be able to lock the shop (plus its level/odds readout as an example).
+
+**Change.** [L] or the Lock button locks the darkmarket: at the next level every unbought module offer
+and the perk offer stay, and only bought slots are refilled; rerolling still works while locked, and it
+stays locked until unlocked (the button is highlighted while locked). Hovering Upgrade shows the current
+and next market level's tier odds and perk rarity odds side by side.
+
+**Checked.** Tests: lock keeps unbought offers and the perk across a market refresh and refills the bought
+slot; unlocking rolls fresh offers; rerolls still change offers while locked (20/20 pass). Screenshot of
+the upgrade tooltip; first capture showed tier 1-2 lines too dark and a see-through box, both fixed.
